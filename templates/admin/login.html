@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="login-container">
+    <div class="login-image">
+        <div class="image-overlay"></div>
+        <div class="image-content">
+            <h1>Welcome Back</h1>
+            <p>Manage your invoices with our modern platform</p>
+        </div>
+    </div>
+    <div class="login-form-container">
+        <div class="login-card">
+            <div class="auth-header">
+                <h1>Admin Login</h1>
+                <p>Sign in with your administrator account to manage invoices.</p>
+            </div>
+
+            <form method="POST" action="{{ url_for('admin_login') }}" class="form-grid">
+                <div class="input-box">
+                    <span class="icon">📧</span>
+                    <input type="email" name="email" placeholder="Admin Email" autocomplete="email" required>
+                </div>
+                <div class="input-box">
+                    <span class="icon">🔒</span>
+                    <input type="password" name="password" placeholder="Password" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="login-btn">Sign In</button>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}

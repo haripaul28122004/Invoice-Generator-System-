@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="home">
+    <div class="home-card">
+        <h1>Invoice Management System</h1>
+        <p>Manage your invoices easily and securely from a single safe entry point.</p>
+        <div class="home-actions">
+            <a href="{{ url_for('admin_login') }}" class="button primary">Admin Login</a>
+            <a href="{{ url_for('user_login') }}" class="button secondary">User Login</a>
+            <a href="{{ url_for('register') }}" class="button secondary">Register</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

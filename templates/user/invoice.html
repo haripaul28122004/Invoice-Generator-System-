@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="invoice-card">
+    <div class="invoice-header">
+        <div>
+            <p class="tag">Invoice</p>
+            <h1>Invoice #{{ invoice.id }}</h1>
+            <p class="muted">Date: {{ invoice.date }}</p>
+        </div>
+        <div>
+            <a href="{{ url_for('download_invoice', invoice_id=invoice.id) }}" class="button">Download PDF</a>
+        </div>
+    </div>
+
+    <div class="details-grid">
+        <div class="detail-block">
+            <span class="label">Customer</span>
+            <strong>{{ invoice.customer }}</strong>
+        </div>
+        <div class="detail-block">
+            <span class="label">Product</span>
+            <strong>{{ invoice.product }}</strong>
+        </div>
+        <div class="detail-block">
+            <span class="label">Quantity</span>
+            <strong>{{ invoice.quantity }}</strong>
+        </div>
+        <div class="detail-block">
+            <span class="label">Unit Price</span>
+            <strong>Rs. {{ '%.2f' | format(invoice.price) }}</strong>
+        </div>
+    </div>
+
+    <div class="summary-card invoice-summary">
+        <span class="label">Grand Total</span>
+        <strong>Rs. {{ '%.2f' | format(invoice.total) }}</strong>
+    </div>
+
+    <div class="actions-row">
+        {% if session.get('role') == 'admin' %}
+            <a href="{{ url_for('admin_dashboard') }}" class="secondary">Back to Dashboard</a>
+        {% else %}
+            <a href="{{ url_for('user_dashboard') }}" class="secondary">Back to Dashboard</a>
+        {% endif %}
+        <a href="{{ url_for('download_invoice', invoice_id=invoice.id) }}" class="button">Download PDF</a>
+    </div>
+</section>
+{% endblock %}

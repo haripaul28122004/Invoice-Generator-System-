@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="login-container">
+    <div class="login-image">
+        <div class="image-overlay"></div>
+        <div class="image-content">
+            <h1>Join Us</h1>
+            <p>Create your account to get started</p>
+        </div>
+    </div>
+    <div class="login-form-container">
+        <div class="login-card">
+            <div class="auth-header">
+                <h1>Create Your Account</h1>
+                <p>Register as a user to view invoices and download PDFs.</p>
+            </div>
+
+            <form method="POST" action="{{ url_for('register') }}" class="form-grid">
+                <div class="input-box">
+                    <span class="icon">👤</span>
+                    <input type="text" name="username" placeholder="Username" required>
+                </div>
+                <div class="input-box">
+                    <span class="icon">📧</span>
+                    <input type="email" name="email" placeholder="Email address" required>
+                </div>
+                <div class="input-box">
+                    <span class="icon">🔒</span>
+                    <input type="password" name="password" placeholder="Password" required>
+                </div>
+                <div class="input-box">
+                    <span class="icon">🔒</span>
+                    <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+                </div>
+                <button type="submit" class="login-btn">Register</button>
+            </form>
+            <div class="notice">
+                Already have an account? <a href="{{ url_for('user_login') }}">Login here</a>.
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dashboard-shell">
+    <div class="panel panel-grid">
+        <div>
+            <h2>Your Invoice Dashboard</h2>
+            <p>Review invoices and download PDF files instantly.</p>
+        </div>
+        <div class="stacked-cards">
+            <div class="card summary-card">
+                <span class="label">Invoices</span>
+                <strong>{{ invoices|length }}</strong>
+            </div>
+            <div class="card summary-card">
+                <span class="label">Revenue</span>
+                <strong>Rs. {{ total_revenue or '0.00' }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-card">
+        <div class="table-header">
+            <h3>Recent Invoices</h3>
+            <p class="muted">View and download invoices assigned by the admin.</p>
+        </div>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Total</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                        <tr>
+                            <td>{{ invoice.id }}</td>
+                            <td>{{ invoice.customer }}</td>
+                            <td>{{ invoice.product }}</td>
+                            <td>{{ invoice.quantity }}</td>
+                            <td>Rs. {{ '%.2f' | format(invoice.total) }}</td>
+                            <td>{{ invoice.date }}</td>
+                            <td class="actions">
+                                <a href="{{ url_for('view_invoice', invoice_id=invoice.id) }}">View</a>
+                                <a href="{{ url_for('download_invoice', invoice_id=invoice.id) }}" class="secondary">PDF</a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="7">No invoices yet. Create your first invoice.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}
