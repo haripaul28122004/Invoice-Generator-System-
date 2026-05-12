@@ -15,7 +15,6 @@
                     <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
                     <a href="{{ url_for('admin_customers') }}">Customers</a>
                     <a href="{{ url_for('admin_products') }}">Products</a>
-                    <a href="{{ url_for('admin_create_invoice') }}">Create Invoice</a>
                     <a href="{{ url_for('logout') }}" class="button mini">Logout</a>
                 {% elif session.get('role') == 'user' %}
                     <a href="{{ url_for('user_dashboard') }}">Dashboard</a>
@@ -54,6 +53,89 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- AI Chat Widget -->
+    <div class="ai-chat-widget">
+        <div class="chat-header" onclick="toggleChat()">
+            <span>💬 Ask AI</span>
+            <button class="close-btn" onclick="toggleChat()">&times;</button>
+        </div>
+        <div class="chat-body" id="chatBody">
+            <div class="chat-messages" id="chatMessages">
+                <div class="bot-message">👋 Hi! I'm InvoiceFlow AI. How can I help you?</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Ask me anything..." onkeypress="handleChatKeypress(event)">
+                <button onclick="sendChatMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        function toggleChat() {
+            const chatBody = document.getElementById('chatBody');
+            chatBody.classList.toggle('active');
+            if (chatBody.classList.contains('active')) {
+                setTimeout(scrollChat, 50);
+            }
+        }
+
+        function handleChatKeypress(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        function scrollChat() {
+            const chat = document.querySelector('.chat-body');
+            if (chat) {
+                chat.scrollTop = chat.scrollHeight;
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const query = input.value.trim();
+            
+            if (!query) return;
+            
+            const chatMessages = document.getElementById('chatMessages');
+            
+            const userMsg = document.createElement('div');
+            userMsg.className = 'user-message';
+            userMsg.textContent = query;
+            chatMessages.appendChild(userMsg);
+            scrollChat();
+            
+            input.value = '';
+            input.disabled = true;
+            
+            try {
+                const response = await fetch('/ai_help', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                const data = await response.json();
+                
+                const botMsg = document.createElement('div');
+                botMsg.className = 'bot-message';
+                botMsg.textContent = data.response || 'I could not find an answer. Try again.';
+                chatMessages.appendChild(botMsg);
+                scrollChat();
+            } catch (error) {
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'bot-message';
+                errorMsg.textContent = '⚠️ Error: Could not connect. Try again later.';
+                chatMessages.appendChild(errorMsg);
+                scrollChat();
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        }
+    </script>
+
 </body>
-</html>
 </html>

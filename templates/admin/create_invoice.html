@@ -9,25 +9,93 @@
                 <label for="customer">Customer Name *</label>
                 <input type="text" id="customer" name="customer" placeholder="Enter customer name" required>
             </div>
+        </div>
+        <div class="form-row">
             <div class="form-group">
                 <label for="product">Product *</label>
-                <input type="text" id="product" name="product" placeholder="Enter product name" required>
+                <select id="product" name="product" required onchange="updatePriceAndGST()">
+                    <option value="">Select a product...</option>
+                    {% for product in products %}
+                    <option value="{{ product['name'] }}" data-price="{{ product['price'] }}" data-gst="{{ product['gst'] or 0.18 }}">
+                        {{ product['name'] }} - Rs. {{ "%.2f"|format(product['price']) }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
         </div>
         <div class="form-row two-col">
             <div class="form-group">
                 <label for="quantity">Quantity *</label>
-                <input type="number" id="quantity" name="quantity" min="1" placeholder="0" required>
+                <input type="number" id="quantity" name="quantity" min="1" placeholder="0" required oninput="calculateTax()">
             </div>
             <div class="form-group">
                 <label for="price">Unit Price (Rs.) *</label>
-                <input type="number" id="price" name="price" min="0" step="0.01" placeholder="0.00" required>
+                <input type="number" id="price" name="price" min="0" step="0.01" placeholder="0.00" required oninput="calculateTax()" readonly style="background: #f3f4f6;">
             </div>
         </div>
+
+        <!-- Real-time Tax Calculator Display -->
+        <div class="tax-summary" id="taxSummary" style="display: none;">
+            <div class="tax-row header">
+                <span>SUBTOTAL</span>
+                <span>Rs. <span id="subtotalValue">0.00</span></span>
+            </div>
+            <div class="tax-row">
+                <span>GST (<span id="gstRate">18</span>%)</span>
+                <span>Rs. <span id="taxValue">0.00</span></span>
+            </div>
+            <div class="tax-row total">
+                <span>FINAL TOTAL</span>
+                <span>Rs. <span id="finalTotalValue">0.00</span></span>
+            </div>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="button">Create Invoice</button>
             <a href="{{ url_for('admin_dashboard') }}" class="button secondary">Cancel</a>
         </div>
     </form>
 </div>
+
+<script>
+    const productSelect = document.getElementById('product');
+    const quantityInput = document.getElementById('quantity');
+    const priceInput = document.getElementById('price');
+    const taxSummary = document.getElementById('taxSummary');
+    let currentGST = 0.18;
+
+    function updatePriceAndGST() {
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        if (selectedOption.value) {
+            const price = parseFloat(selectedOption.dataset.price) || 0;
+            currentGST = parseFloat(selectedOption.dataset.gst) || 0.18;
+            priceInput.value = price.toFixed(2);
+            calculateTax();
+        } else {
+            priceInput.value = '';
+            taxSummary.style.display = 'none';
+        }
+    }
+
+    function calculateTax() {
+        const quantity = parseInt(quantityInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+
+        if (quantity <= 0 || price <= 0) {
+            taxSummary.style.display = 'none';
+            return;
+        }
+
+        const subtotal = quantity * price;
+        const tax = subtotal * currentGST;
+        const finalTotal = subtotal + tax;
+
+        document.getElementById('subtotalValue').textContent = subtotal.toFixed(2);
+        document.getElementById('taxValue').textContent = tax.toFixed(2);
+        document.getElementById('gstRate').textContent = (currentGST * 100).toFixed(0);
+        document.getElementById('finalTotalValue').textContent = finalTotal.toFixed(2);
+
+        taxSummary.style.display = 'block';
+    }
+</script>
 {% endblock %}

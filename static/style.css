@@ -499,6 +499,106 @@ table {
     text-align: left;
 }
 
+.ai-chat-widget {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 320px;
+    max-width: calc(100vw - 48px);
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12);
+    z-index: 999;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.ai-chat-widget .chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.9rem 1rem;
+    cursor: pointer;
+}
+
+.ai-chat-widget .chat-header span {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.ai-chat-widget .close-btn {
+    border: none;
+    background: transparent;
+    color: white;
+    font-size: 1.1rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.ai-chat-widget .chat-body {
+    display: flex;
+    flex-direction: column;
+    height: 360px;
+    max-height: 360px;
+    overflow-y: auto;
+    background: var(--bg-primary);
+    padding: 1rem;
+    gap: 0.75rem;
+}
+
+.ai-chat-widget .chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ai-chat-widget .chat-input-area {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: auto;
+}
+
+.ai-chat-widget input[type="text"] {
+    flex: 1;
+    padding: 0.85rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    font-size: 0.95rem;
+    background: white;
+}
+
+.ai-chat-widget button {
+    min-width: 72px;
+    border-radius: 999px;
+    background: var(--primary-color);
+    color: white;
+}
+
+.bot-message,
+.user-message {
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
+    max-width: 100%;
+    word-wrap: break-word;
+}
+
+.bot-message {
+    background: #eef2ff;
+    color: var(--text-primary);
+    align-self: flex-start;
+}
+
+.user-message {
+    background: var(--primary-color);
+    color: white;
+    align-self: flex-end;
+}
+
+
 thead {
     background-color: var(--bg-primary);
     border-bottom: 2px solid var(--border-color);
@@ -1198,4 +1298,242 @@ tbody tr:hover {
 .role-badge.user {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
+}
+
+/* ============================================
+   AI CHAT WIDGET
+   ============================================ */
+
+.ai-chat-widget {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 380px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 5px 40px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    z-index: 999;
+    font-size: 0.95rem;
+}
+
+.chat-header {
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chat-body {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    background: var(--bg-secondary);
+    height: 450px;
+}
+
+.chat-body.active {
+    display: flex;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.bot-message {
+    background-color: var(--bg-primary);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    color: var(--text-primary);
+    border-left: 3px solid var(--primary-color);
+    word-wrap: break-word;
+}
+
+.user-message {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    text-align: right;
+    margin-left: auto;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+
+.chat-input-area {
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 0.5rem;
+}
+
+.chat-input-area input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+.chat-input-area button {
+    padding: 0.75rem 1.5rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.chat-input-area button:hover {
+    background-color: var(--primary-hover);
+}
+
+/* ============================================
+   AI INSIGHTS BOX
+   ============================================ */
+
+.ai-insights-box {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%);
+    border: 1px solid rgba(79, 70, 229, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.ai-insights-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.insights-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.insights-list li {
+    color: var(--text-primary);
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(79, 70, 229, 0.05);
+    font-size: 0.95rem;
+}
+
+.insights-list li:last-child {
+    border-bottom: none;
+}
+
+/* ============================================
+   CHARTS CONTAINER
+   ============================================ */
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.chart-container {
+    background: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
+}
+
+.chart-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+}
+
+.chart-canvas {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* ============================================
+   TAX CALCULATION DISPLAY
+   ============================================ */
+
+.tax-summary {
+    background-color: var(--bg-primary);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    border-left: 4px solid var(--success-color);
+}
+
+.tax-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    color: var(--text-primary);
+}
+
+.tax-row.header {
+    font-weight: 600;
+    color: var(--primary-color);
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 0.5rem;
+}
+
+.tax-row.total {
+    font-weight: 700;
+    color: var(--success-color);
+    font-size: 1.1rem;
+    padding-top: 0.5rem;
+    border-top: 2px solid var(--border-color);
+    margin-top: 0.5rem;
+}
+
+/* ============================================
+   RESPONSIVE - AI CHAT WIDGET
+   ============================================ */
+
+@media (max-width: 768px) {
+    .ai-chat-widget {
+        width: calc(100% - 40px);
+        height: 400px;
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
 }

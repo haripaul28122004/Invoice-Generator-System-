@@ -21,6 +21,40 @@
     </div>
 </div>
 
+<!-- AI Insights Box -->
+<div class="ai-insights-box">
+    <div class="ai-insights-title">🤖 AI Insights & Predictions</div>
+    <ul class="insights-list">
+        {% for insight in ai_insights %}
+        <li>{{ insight }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<!-- Charts Section -->
+<div class="charts-grid">
+    <div class="chart-container">
+        <div class="chart-title">📈 Sales Over Time</div>
+        <div class="chart-canvas">
+            <canvas id="salesChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="chart-container">
+        <div class="chart-title">📦 Product Sales (Quantity)</div>
+        <div class="chart-canvas">
+            <canvas id="productQtyChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="chart-container">
+        <div class="chart-title">💰 Revenue Distribution</div>
+        <div class="chart-canvas">
+            <canvas id="revenueDistChart"></canvas>
+        </div>
+    </div>
+</div>
+
 <div class="table-container">
     <div class="table-header">
         <h2>Recent Invoices</h2>
@@ -65,4 +99,78 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+    // Parse chart data from backend
+    const salesData = {{ sales_chart_data | safe }};
+    const productQtyData = {{ product_qty_chart_data | safe }};
+    const revenueDistData = {{ revenue_dist_chart_data | safe }};
+
+    // Chart.js color palette
+    const colors = ['#4f46e5', '#6366f1', '#818cf8', '#c7d2fe', '#e0e7ff', '#10b981', '#f59e0b', '#ef4444'];
+
+    // Sales Over Time - Line Chart
+    if (salesData.dates.length > 0) {
+        new Chart(document.getElementById('salesChart'), {
+            type: 'line',
+            data: {
+                labels: salesData.dates,
+                datasets: [{
+                    label: 'Revenue (₹)',
+                    data: salesData.revenues,
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // Product Quantity - Bar Chart
+    if (productQtyData.names.length > 0) {
+        new Chart(document.getElementById('productQtyChart'), {
+            type: 'bar',
+            data: {
+                labels: productQtyData.names,
+                datasets: [{
+                    label: 'Quantity Sold',
+                    data: productQtyData.quantities,
+                    backgroundColor: colors.slice(0, productQtyData.names.length)
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // Revenue Distribution - Pie Chart
+    if (revenueDistData.names.length > 0) {
+        new Chart(document.getElementById('revenueDistChart'), {
+            type: 'pie',
+            data: {
+                labels: revenueDistData.names,
+                datasets: [{
+                    data: revenueDistData.revenues,
+                    backgroundColor: colors.slice(0, revenueDistData.names.length)
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+</script>
 {% endblock %}

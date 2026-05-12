@@ -19,6 +19,18 @@
                 <input type="number" id="product_price" name="product_price" min="0" step="0.01" placeholder="0.00" required>
             </div>
         </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="product_gst">GST Rate *</label>
+                <select id="product_gst" name="product_gst" required>
+                    <option value="0">0%</option>
+                    <option value="0.05">5%</option>
+                    <option value="0.12">12%</option>
+                    <option value="0.18" selected>18% (Default)</option>
+                    <option value="0.28">28%</option>
+                </select>
+            </div>
+        </div>
         <div class="form-actions">
             <button type="submit" class="button">Add Product</button>
         </div>
@@ -37,6 +49,7 @@
                 <th>Product ID</th>
                 <th>Product Name</th>
                 <th>Price (Rs.)</th>
+                <th>GST Rate</th>
                 <th>Created Date</th>
                 <th>Actions</th>
             </tr>
@@ -47,6 +60,7 @@
                 <td><strong>#{{ product['id'] }}</strong></td>
                 <td>{{ product['name'] }}</td>
                 <td>Rs. {{ "%.2f"|format(product['price']) }}</td>
+                <td>{{ "%.0f"|format(product['gst'] * 100) if product['gst'] else 18 }}%</td>
                 <td>{{ product['created_date'] }}</td>
                 <td class="table-actions">
                     <form method="POST" action="{{ url_for('delete_product', product_id=product['id']) }}" style="display:inline;">
