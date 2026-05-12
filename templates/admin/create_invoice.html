@@ -1,21 +1,33 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="dashboard-shell">
-    <div class="panel panel-grid">
-        <div>
-            <h2>Create Invoice</h2>
-            <p>Record a new invoice for your customers.</p>
+<div class="form-container">
+    <h2>Create New Invoice</h2>
+    <form method="POST">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="customer">Customer Name *</label>
+                <input type="text" id="customer" name="customer" placeholder="Enter customer name" required>
+            </div>
+            <div class="form-group">
+                <label for="product">Product *</label>
+                <input type="text" id="product" name="product" placeholder="Enter product name" required>
+            </div>
         </div>
-        <a href="{{ url_for('admin_dashboard') }}" class="button secondary">Back to Dashboard</a>
-    </div>
-
-    <form method="POST" action="{{ url_for('admin_create') }}" class="form-grid wide-grid">
-        <input type="text" name="customer" placeholder="Customer Name" required>
-        <input type="text" name="product" placeholder="Product or Service" required>
-        <input type="number" name="quantity" placeholder="Quantity" min="1" required>
-        <input type="number" name="price" placeholder="Unit Price" step="0.01" min="0" required>
-        <button type="submit">Save Invoice</button>
+        <div class="form-row two-col">
+            <div class="form-group">
+                <label for="quantity">Quantity *</label>
+                <input type="number" id="quantity" name="quantity" min="1" placeholder="0" required>
+            </div>
+            <div class="form-group">
+                <label for="price">Unit Price (Rs.) *</label>
+                <input type="number" id="price" name="price" min="0" step="0.01" placeholder="0.00" required>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="button">Create Invoice</button>
+            <a href="{{ url_for('admin_dashboard') }}" class="button secondary">Cancel</a>
+        </div>
     </form>
-</section>
+</div>
 {% endblock %}

@@ -1,24 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="dashboard-shell">
-    <div class="panel panel-grid">
-        <div>
-            <h2>Create New Invoice</h2>
-            <p>Fill in the details and generate a professional invoice.</p>
+<div class="form-container">
+    <h2>Create New Invoice</h2>
+    <form method="POST">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="customer">Customer Name *</label>
+                <input type="text" id="customer" name="customer" placeholder="Enter customer name" required>
+            </div>
         </div>
-        <div class="card summary-card">
-            <span class="label">Signed in as</span>
-            <strong>{{ session.get('username') }}</strong>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="product_id">Product *</label>
+                <select id="product_id" name="product_id" required>
+                    <option value="">Select a product...</option>
+                    {% for product in products %}
+                    <option value="{{ product['id'] }}">{{ product['name'] }} - Rs. {{ "%.2f"|format(product['price']) }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
-    </div>
-
-    <form method="POST" action="{{ url_for('generate_invoice') }}" class="form-grid wide-grid">
-        <input type="text" name="customer" placeholder="Customer Name" required>
-        <input type="text" name="product" placeholder="Product / Service" required>
-        <input type="number" name="quantity" placeholder="Quantity" min="1" required>
-        <input type="number" name="price" placeholder="Unit Price" step="0.01" min="0" required>
-        <button type="submit" class="button full">Generate Invoice</button>
+        <div class="form-row two-col">
+            <div class="form-group">
+                <label for="quantity">Quantity *</label>
+                <input type="number" id="quantity" name="quantity" min="1" placeholder="0" required>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="button">Create Invoice</button>
+            <a href="{{ url_for('user_dashboard') }}" class="button secondary">Cancel</a>
+        </div>
     </form>
-</section>
+</div>
 {% endblock %}

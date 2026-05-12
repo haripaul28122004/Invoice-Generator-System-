@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Customer Management</h1>
+    <p>View all your customers and their invoice history</p>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h2>Customer List</h2>
+    </div>
+    
+    {% if customers %}
+    <table>
+        <thead>
+            <tr>
+                <th>Customer Name</th>
+                <th>Total Invoices</th>
+                <th>Total Spent (Rs.)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for customer in customers %}
+            <tr>
+                <td><strong>{{ customer['customer'] }}</strong></td>
+                <td>{{ customer['invoice_count'] }}</td>
+                <td>Rs. {{ "%.2f"|format(customer['total_spent']) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+        <p>No customers found yet. Create an invoice to add customers.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

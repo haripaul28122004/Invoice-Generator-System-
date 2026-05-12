@@ -1,20 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="login-image">
-    <div style="text-align: center; color: white; z-index: 10; position: relative;">
-        <h2 style="font-size: 2rem; margin-bottom: 1rem;">InvoiceFlow</h2>
-        <p style="font-size: 1.1rem; opacity: 0.9;">Admin Portal</p>
-    </div>
-</div>
-
 <div class="login-content">
     <div class="login-form">
-        <h2>Admin Login</h2>
+        <h2>Customer Login</h2>
         <form method="POST">
             <div class="form-group">
                 <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" placeholder="admin@invoiceflow.com" required>
+                <input type="email" id="email" name="email" placeholder="your@email.com" required>
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
@@ -22,6 +15,9 @@
             </div>
             <button type="submit" class="button full-width">Login</button>
         </form>
+        <p class="text-center mt-3">
+            Don't have an account? <a href="{{ url_for('customer_register') }}" class="button secondary mini">Register Here</a>
+        </p>
     </div>
 </div>
 {% endblock %}

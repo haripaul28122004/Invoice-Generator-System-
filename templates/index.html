@@ -1,15 +1,27 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="home">
-    <div class="home-card">
-        <h1>Invoice Management System</h1>
-        <p>Manage your invoices easily and securely from a single safe entry point.</p>
-        <div class="home-actions">
-            <a href="{{ url_for('admin_login') }}" class="button primary">Admin Login</a>
-            <a href="{{ url_for('user_login') }}" class="button secondary">User Login</a>
-            <a href="{{ url_for('register') }}" class="button secondary">Register</a>
+<div class="home-container">
+    <div class="home-content">
+        <div class="home-text">
+            <h1>InvoiceFlow</h1>
+            <p>Manage invoices efficiently with our modern, intuitive platform. Choose your role to get started.</p>
+            <div class="home-actions">
+                <a href="{{ url_for('admin_login') }}" class="button">Admin Login</a>
+                <a href="{{ url_for('user_login') }}" class="button secondary">Employee Login</a>
+                <a href="{{ url_for('customer_login') }}" class="button secondary">Customer Login</a>
+                <a href="{{ url_for('customer_register') }}" class="button secondary">Customer Register</a>
+            </div>
         </div>
     </div>
-</section>
+    <div class="home-image">
+        <div class="floating-image">
+            <div style="text-align: center; padding: 2rem; background: rgba(79, 70, 229, 0.1); border-radius: 12px; color: var(--primary-color);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                <h3>Professional Invoice Management</h3>
+                <p>Simple, Fast, Secure</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

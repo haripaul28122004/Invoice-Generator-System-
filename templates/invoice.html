@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="invoice-container">
+    <div class="invoice-header">
+        <h1>Invoice #{{ invoice['id'] }}</h1>
+    </div>
+
+    <div class="invoice-details">
+        <div class="invoice-detail-item">
+            <div class="invoice-detail-label">Customer</div>
+            <div class="invoice-detail-value">{{ invoice['customer'] }}</div>
+        </div>
+        <div class="invoice-detail-item">
+            <div class="invoice-detail-label">Date</div>
+            <div class="invoice-detail-value">{{ invoice['date'] }}</div>
+        </div>
+        <div class="invoice-detail-item">
+            <div class="invoice-detail-label">Status</div>
+            <div class="invoice-detail-value"><span class="badge success">Active</span></div>
+        </div>
+    </div>
+
+    <div class="invoice-items">
+        <table>
+            <thead>
+                <tr>
+                    <th>Product / Service</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ invoice['product'] }}</td>
+                    <td>{{ invoice['quantity'] }}</td>
+                    <td>Rs. {{ "%.2f"|format(invoice['price']) }}</td>
+                    <td>Rs. {{ "%.2f"|format(invoice['total']) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="invoice-total">
+        <div class="invoice-total-item">
+            <div class="invoice-total-label">Grand Total</div>
+            <div class="invoice-total-value">Rs. {{ "%.2f"|format(invoice['total']) }}</div>
+        </div>
+    </div>
+
+    <div class="invoice-actions">
+        <a href="{{ url_for('download_invoice', invoice_id=invoice['id']) }}" class="button">Download PDF</a>
+        <a href="javascript:history.back()" class="button secondary">Back</a>
+    </div>
+</div>
+{% endblock %}
