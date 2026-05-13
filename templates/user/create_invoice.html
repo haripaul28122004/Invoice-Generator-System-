@@ -4,29 +4,83 @@
 <div class="form-container">
     <h2>Create New Invoice</h2>
     <form method="POST">
+        <!-- Employee Selection Dropdown -->
         <div class="form-row">
             <div class="form-group">
-                <label for="customer">Customer Name *</label>
-                <input type="text" id="customer" name="customer" placeholder="Enter customer name" required>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="product_id">Product *</label>
-                <select id="product_id" name="product_id" required onchange="updatePriceAndGST()">
-                    <option value="">Select a product...</option>
-                    {% for product in products %}
-                    <option value="{{ product['id'] }}" data-price="{{ product['price'] }}" data-gst="{{ product['gst'] or 0.18 }}">
-                        {{ product['name'] }} - Rs. {{ "%.2f"|format(product['price']) }}
+                <label for="customer">Select Employee *</label>
+                <select id="customer" name="customer" required>
+                    <option value="">-- Select an Employee --</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp['username'] }}">
+                        {{ emp['username'] }} ({{ emp['email'] }})
                     </option>
                     {% endfor %}
                 </select>
             </div>
         </div>
+
+        <!-- Category Filter -->
         <div class="form-row">
+            <div class="form-group">
+                <label for="categoryFilter">Filter by Category</label>
+                <select id="categoryFilter">
+                    <option value="">All Categories</option>
+                    {% set categories = [] %}
+                    {% for product in products %}
+                        {% if product['category'] not in categories %}
+                            {% set _ = categories.append(product['category']) %}
+                            <option value="{{ product['category'] }}">{{ product['category'] }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Search Product -->
+        <div class="form-row">
+            <div class="form-group">
+                <label for="searchProduct">Search Product</label>
+                <input type="text" id="searchProduct" placeholder="Search by name, category, or price...">
+            </div>
+        </div>
+
+        <!-- Product Selection -->
+        <div class="form-row">
+            <div class="form-group">
+                <label for="product_id">Select Product *</label>
+                <select id="product_id" name="product_id" required onchange="updatePriceAndGST()">
+                    <option value="">Select a product...</option>
+                    {% for product in products %}
+                    <option value="{{ product['id'] }}" 
+                        data-name="{{ product['name'] }}" 
+                        data-category="{{ product['category'] }}" 
+                        data-price="{{ product['price'] }}" 
+                        data-gst="{{ product['gst'] or 0.18 }}" 
+                        data-stock="{{ product['stock'] or 0 }}"
+                        {% if (product['stock'] or 0) == 0 %}disabled{% endif %}>
+                        {{ product['name'] }} ({{ product['category'] }}) - ₹{{ "%.2f"|format(product['price']) }} | Stock: {{ product['stock'] or 0 }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Stock Info Display -->
+        <div class="form-row">
+            <div class="form-group" id="stockInfoContainer" style="display:none;">
+                <label for="stockInfo">Available Stock</label>
+                <input type="text" id="stockInfo" readonly placeholder="Select a product" style="background: #f3f4f6;">
+            </div>
+        </div>
+
+        <div class="form-row two-col">
             <div class="form-group">
                 <label for="quantity">Quantity *</label>
                 <input type="number" id="quantity" name="quantity" min="1" placeholder="0" required oninput="calculateTax()">
+            </div>
+            <div class="form-group">
+                <label for="price">Unit Price (₹)</label>
+                <input type="text" id="price" name="price" readonly placeholder="0.00" style="background: #f3f4f6;">
             </div>
         </div>
 
@@ -34,16 +88,21 @@
         <div class="tax-summary" id="taxSummary" style="display: none;">
             <div class="tax-row header">
                 <span>SUBTOTAL</span>
-                <span>Rs. <span id="subtotalValue">0.00</span></span>
+                <span>₹ <span id="subtotalValue">0.00</span></span>
             </div>
             <div class="tax-row">
                 <span>GST (<span id="gstRate">18</span>%)</span>
-                <span>Rs. <span id="taxValue">0.00</span></span>
+                <span>₹ <span id="taxValue">0.00</span></span>
             </div>
             <div class="tax-row total">
                 <span>FINAL TOTAL</span>
-                <span>Rs. <span id="finalTotalValue">0.00</span></span>
+                <span>₹ <span id="finalTotalValue">0.00</span></span>
             </div>
+        </div>
+
+        <!-- Stock Warning -->
+        <div id="stockWarning" class="flash danger" style="display: none; margin-top: 1rem;">
+            ⚠️ Quantity exceeds available stock!
         </div>
 
         <div class="form-actions">
@@ -54,32 +113,93 @@
 </div>
 
 <script>
+    const productsData = {{ products|tojson }};
+
     const productSelect = document.getElementById('product_id');
     const quantityInput = document.getElementById('quantity');
+    const priceInput = document.getElementById('price');
     const taxSummary = document.getElementById('taxSummary');
-    let currentPrice = 0;
-    let currentGST = 0.18;
+    const searchInput = document.getElementById('searchProduct');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const stockInfoContainer = document.getElementById('stockInfoContainer');
+    const stockInfo = document.getElementById('stockInfo');
+    const stockWarning = document.getElementById('stockWarning');
 
+    let currentGST = 0.18;
+    let currentStock = 0;
+
+    // Search functionality
+    searchInput.addEventListener('keyup', function () {
+        const filter = this.value.toLowerCase();
+        const category = categoryFilter.value.toLowerCase();
+        const options = productSelect.options;
+
+        for (let i = 1; i < options.length; i++) {
+            const option = options[i];
+            const text = option.text.toLowerCase();
+            const optionCategory = option.dataset.category.toLowerCase();
+            const matchesCategory = category === '' || optionCategory === category;
+            const matchesSearch = text.includes(filter);
+            
+            option.style.display = matchesCategory && matchesSearch ? '' : 'none';
+        }
+    });
+
+    // Category filter functionality
+    categoryFilter.addEventListener('change', function () {
+        const category = this.value.toLowerCase();
+        const filter = searchInput.value.toLowerCase();
+        const options = productSelect.options;
+
+        for (let i = 1; i < options.length; i++) {
+            const option = options[i];
+            const text = option.text.toLowerCase();
+            const optionCategory = option.dataset.category.toLowerCase();
+            const matchesCategory = category === '' || optionCategory === category;
+            const matchesSearch = filter === '' || text.includes(filter);
+            
+            option.style.display = matchesCategory && matchesSearch ? '' : 'none';
+        }
+    });
+
+    // Update price, GST, and stock
     function updatePriceAndGST() {
         const selectedOption = productSelect.options[productSelect.selectedIndex];
-        if (selectedOption.value) {
-            currentPrice = parseFloat(selectedOption.dataset.price) || 0;
+        if (selectedOption && selectedOption.value) {
+            const price = parseFloat(selectedOption.dataset.price) || 0;
             currentGST = parseFloat(selectedOption.dataset.gst) || 0.18;
+            currentStock = parseInt(selectedOption.dataset.stock) || 0;
+            
+            priceInput.value = price.toFixed(2);
+            stockInfo.value = currentStock + ' units';
+            stockInfoContainer.style.display = 'block';
+            
             calculateTax();
         } else {
+            priceInput.value = '';
+            stockInfoContainer.style.display = 'none';
             taxSummary.style.display = 'none';
         }
     }
 
+    // Calculate tax and check stock
     function calculateTax() {
         const quantity = parseInt(quantityInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
 
-        if (quantity <= 0 || currentPrice <= 0) {
+        // Check stock availability
+        if (quantity > currentStock && currentStock > 0) {
+            stockWarning.style.display = 'block';
+        } else {
+            stockWarning.style.display = 'none';
+        }
+
+        if (quantity <= 0 || price <= 0) {
             taxSummary.style.display = 'none';
             return;
         }
 
-        const subtotal = quantity * currentPrice;
+        const subtotal = quantity * price;
         const tax = subtotal * currentGST;
         const finalTotal = subtotal + tax;
 
@@ -88,48 +208,6 @@
         document.getElementById('gstRate').textContent = (currentGST * 100).toFixed(0);
         document.getElementById('finalTotalValue').textContent = finalTotal.toFixed(2);
 
-        taxSummary.style.display = 'block';
-    }
-</script>
-{% endblock %}
-    </form>
-</div>
-
-<script>
-    const productSelect = document.getElementById('product_id');
-    const quantityInput = document.getElementById('quantity');
-    const taxSummary = document.getElementById('taxSummary');
-
-    function updatePrice() {
-        calculateTax();
-    }
-
-    function calculateTax() {
-        const productId = productSelect.value;
-        const quantity = parseInt(quantityInput.value) || 0;
-
-        if (!productId || quantity <= 0) {
-            taxSummary.style.display = 'none';
-            return;
-        }
-
-        // Get the price from the selected option
-        const selectedOption = productSelect.options[productSelect.selectedIndex];
-        const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
-
-        // Calculate subtotal
-        const subtotal = price * quantity;
-
-        // Calculate tax (18% GST)
-        const tax = subtotal * 0.18;
-        const finalTotal = subtotal + tax;
-
-        // Update display
-        document.getElementById('subtotalValue').textContent = subtotal.toFixed(2);
-        document.getElementById('taxValue').textContent = tax.toFixed(2);
-        document.getElementById('finalTotalValue').textContent = finalTotal.toFixed(2);
-
-        // Show tax summary
         taxSummary.style.display = 'block';
     }
 </script>

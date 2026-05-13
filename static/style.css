@@ -540,10 +540,8 @@ table {
 }
 
 .ai-chat-widget .chat-body {
-    display: flex;
     flex-direction: column;
-    height: 360px;
-    max-height: 360px;
+    max-height: 300px;
     overflow-y: auto;
     background: var(--bg-primary);
     padding: 1rem;
@@ -670,6 +668,10 @@ tbody tr:last-child td {
 
 .form-row.two-col {
     grid-template-columns: repeat(2, 1fr);
+}
+
+.form-row.three-col {
+    grid-template-columns: repeat(3, 1fr);
 }
 
 .form-group {
@@ -944,6 +946,10 @@ tbody tr:last-child td {
     }
 
     .form-row.two-col {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row.three-col {
         grid-template-columns: 1fr;
     }
 
@@ -1348,7 +1354,8 @@ tbody tr:hover {
     flex-direction: column;
     flex: 1;
     background: var(--bg-secondary);
-    height: 450px;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .chat-body.active {

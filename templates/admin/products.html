@@ -12,14 +12,18 @@
         <div class="form-row two-col">
             <div class="form-group">
                 <label for="product_name">Product Name *</label>
-                <input type="text" id="product_name" name="product_name" placeholder="e.g., Consulting Service" required>
+                <input type="text" id="product_name" name="product_name" placeholder="e.g., Laptop" required>
             </div>
             <div class="form-group">
-                <label for="product_price">Price (Rs.) *</label>
-                <input type="number" id="product_price" name="product_price" min="0" step="0.01" placeholder="0.00" required>
+                <label for="product_category">Category *</label>
+                <input type="text" id="product_category" name="product_category" placeholder="e.g., Electronics" value="General" required>
             </div>
         </div>
-        <div class="form-row">
+        <div class="form-row three-col">
+            <div class="form-group">
+                <label for="product_price">Price (₹) *</label>
+                <input type="number" id="product_price" name="product_price" min="0" step="0.01" placeholder="0.00" required>
+            </div>
             <div class="form-group">
                 <label for="product_gst">GST Rate *</label>
                 <select id="product_gst" name="product_gst" required>
@@ -29,6 +33,10 @@
                     <option value="0.18" selected>18% (Default)</option>
                     <option value="0.28">28%</option>
                 </select>
+            </div>
+            <div class="form-group">
+                <label for="product_stock">Initial Stock *</label>
+                <input type="number" id="product_stock" name="product_stock" min="0" placeholder="0" value="0" required>
             </div>
         </div>
         <div class="form-actions">
@@ -46,11 +54,12 @@
     <table>
         <thead>
             <tr>
-                <th>Product ID</th>
+                <th>ID</th>
                 <th>Product Name</th>
-                <th>Price (Rs.)</th>
-                <th>GST Rate</th>
-                <th>Created Date</th>
+                <th>Category</th>
+                <th>Price (₹)</th>
+                <th>GST</th>
+                <th>Stock</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -59,9 +68,17 @@
             <tr>
                 <td><strong>#{{ product['id'] }}</strong></td>
                 <td>{{ product['name'] }}</td>
-                <td>Rs. {{ "%.2f"|format(product['price']) }}</td>
+                <td><span class="badge">{{ product['category'] or 'General' }}</span></td>
+                <td>₹ {{ "%.2f"|format(product['price']) }}</td>
                 <td>{{ "%.0f"|format(product['gst'] * 100) if product['gst'] else 18 }}%</td>
-                <td>{{ product['created_date'] }}</td>
+                <td>
+                    <strong>{{ product['stock'] or 0 }}</strong>
+                    {% if (product['stock'] or 0) == 0 %}
+                    <span style="color: #ef4444;">● Out of stock</span>
+                    {% elif (product['stock'] or 0) < 10 %}
+                    <span style="color: #f59e0b;">⚠ Low stock</span>
+                    {% endif %}
+                </td>
                 <td class="table-actions">
                     <form method="POST" action="{{ url_for('delete_product', product_id=product['id']) }}" style="display:inline;">
                         <button type="submit" class="button danger mini" onclick="return confirm('Are you sure?')">Delete</button>

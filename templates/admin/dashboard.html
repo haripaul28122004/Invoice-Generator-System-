@@ -58,7 +58,6 @@
 <div class="table-container">
     <div class="table-header">
         <h2>Recent Invoices</h2>
-        <a href="{{ url_for('admin_create_invoice') }}" class="button">+ Create Invoice</a>
     </div>
     
     {% if recent_invoices %}
@@ -95,7 +94,7 @@
     </table>
     {% else %}
     <div style="padding: 2rem; text-align: center; color: var(--text-secondary);">
-        <p>No invoices yet. <a href="{{ url_for('admin_create_invoice') }}" class="button secondary mini">Create one</a></p>
+        <p>No invoices yet.</p>
     </div>
     {% endif %}
 </div>

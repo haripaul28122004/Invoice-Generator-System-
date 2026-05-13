@@ -1,4 +1,5 @@
-﻿from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, jsonify
+from flask_mail import Mail, Message
 import sqlite3
 import io
 from datetime import datetime, timedelta
@@ -15,6 +16,18 @@ app.secret_key = 'invoice_flow_secret_key_2026'
 DATABASE = 'database.db'
 ADMIN_EMAIL = 'haripaul28122004@gmail.com'
 ADMIN_PASSWORD = 'haripaul007'
+
+# ============================================
+# EMAIL CONFIGURATION
+# ============================================
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'haripaul28122004@gmail.com'  
+app.config['MAIL_PASSWORD'] = 'yvxfavdfzlctkozd'  
+app.config['MAIL_DEFAULT_SENDER'] = 'haripaul28122004@gmail.com' 
+
+mail = Mail(app)
 
 
 def get_db_connection():
@@ -39,8 +52,10 @@ def init_db():
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
+            category TEXT DEFAULT 'General',
             price REAL NOT NULL,
             gst REAL NOT NULL DEFAULT 0.18,
+            stock INTEGER DEFAULT 0,
             created_date TEXT NOT NULL
         )
     ''')
@@ -67,6 +82,60 @@ def init_db():
             FOREIGN KEY (product_id) REFERENCES products (id)
         )
     ''')
+    
+    # Migration: Add category and stock columns if they don't exist
+    try:
+        cur.execute("PRAGMA table_info(products)")
+        columns = [col[1] for col in cur.fetchall()]
+        
+        if 'category' not in columns:
+            cur.execute("ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'General'")
+        if 'stock' not in columns:
+            cur.execute("ALTER TABLE products ADD COLUMN stock INTEGER DEFAULT 0")
+        
+        conn.commit()
+    except Exception as e:
+        print(f"Migration note: {e}")
+    
+    conn.close()
+
+
+def seed_employee():
+    """Upsert the default employee user on every startup.
+
+    - If the user does not exist → INSERT with a fresh password hash.
+    - If the user already exists → UPDATE password hash + role so stale
+      or plaintext passwords never block login.
+    """
+    conn = sqlite3.connect(DATABASE)
+    cur = conn.cursor()
+
+    existing = cur.execute(
+        "SELECT id FROM users WHERE email = ?",
+        ("haripaul282004@gmail.com",)
+    ).fetchone()
+
+    hashed = generate_password_hash("haripaul123")
+
+    if not existing:
+        cur.execute(
+            "INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)",
+            (
+                "Hari Paul",
+                "haripaul282004@gmail.com",
+                hashed,
+                "user"
+            )
+        )
+        print("\u2713 Employee user created: haripaul282004@gmail.com")
+    else:
+        # Always refresh hash + role so a stale record never blocks login
+        cur.execute(
+            "UPDATE users SET username = ?, password = ?, role = ? WHERE email = ?",
+            ("Hari Paul", hashed, "user", "haripaul282004@gmail.com")
+        )
+        print("\u2713 Employee user refreshed: haripaul282004@gmail.com")
+
     conn.commit()
     conn.close()
 
@@ -80,6 +149,58 @@ def calculate_tax(subtotal, gst_rate=0.18):
     tax = round(subtotal * gst_rate, 2)
     final_total = round(subtotal + tax, 2)
     return {"tax": tax, "final_total": final_total, "gst_rate": gst_rate}
+
+
+def send_invoice_email(email, name, total):
+    """Send invoice email to customer"""
+    try:
+        if not email or '@' not in email:
+            print(f"Invalid email address: {email}")
+            return False
+        
+        msg = Message(
+            subject="Invoice Generated - InvoiceFlow",
+            recipients=[email]
+        )
+        
+        msg.body = f"""Hello {name},
+
+Your invoice has been successfully created.
+
+Invoice Details:
+- Total Amount: ₹{total:.2f}
+- Date: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}
+
+Thank you for using InvoiceFlow.
+
+Best regards,
+InvoiceFlow Management System
+"""
+        
+        msg.html = f"""<html>
+<body style="font-family: Arial, sans-serif;">
+    <h2>Invoice Created Successfully</h2>
+    <p>Hello {name},</p>
+    <p>Your invoice has been successfully created.</p>
+    <hr>
+    <p><strong>Invoice Details:</strong></p>
+    <ul>
+        <li><strong>Total Amount:</strong> ₹{total:.2f}</li>
+        <li><strong>Date:</strong> {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</li>
+    </ul>
+    <hr>
+    <p>Thank you for using InvoiceFlow.</p>
+    <p>Best regards,<br>InvoiceFlow Management System</p>
+</body>
+</html>"""
+        
+        mail.send(msg)
+        print(f"✓ Email sent successfully to {email}")
+        return True
+        
+    except Exception as e:
+        print(f"✗ Email Error: {str(e)}")
+        return False
 
 
 def get_product_gst(conn, product_name):
@@ -368,6 +489,47 @@ def home():
 
 
 # ============================================
+# SEED DATA ROUTE
+# ============================================
+
+@app.route('/seed_data')
+def seed_data():
+    """Initialize sample products into the database"""
+    try:
+        conn = get_db_connection()
+        
+        # Check if products already exist
+        existing = conn.execute('SELECT COUNT(*) as count FROM products').fetchone()['count']
+        
+        if existing == 0:
+            sample_products = [
+                ('Laptop', 'Electronics', 50000, 0.18, 10),
+                ('Mobile Phone', 'Electronics', 20000, 0.18, 15),
+                ('Office Chair', 'Furniture', 1500, 0.12, 25),
+                ('Office Table', 'Furniture', 3000, 0.12, 10),
+                ('Pizza', 'Food', 200, 0.05, 50),
+                ('Coffee', 'Beverages', 100, 0.05, 100),
+                ('Monitor', 'Electronics', 15000, 0.18, 8),
+                ('Keyboard', 'Electronics', 2000, 0.18, 30),
+            ]
+            
+            for name, category, price, gst, stock in sample_products:
+                conn.execute(
+                    'INSERT INTO products (name, category, price, gst, stock, created_date) VALUES (?, ?, ?, ?, ?, ?)',
+                    (name, category, price, gst, stock, datetime.now().strftime('%d-%m-%Y'))
+                )
+            
+            conn.commit()
+            conn.close()
+            return jsonify({"status": "success", "message": f"Created {len(sample_products)} sample products"})
+        else:
+            conn.close()
+            return jsonify({"status": "info", "message": f"Database already has {existing} products"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+# ============================================
 # AI HELP ROUTE
 # ============================================
 
@@ -541,8 +703,10 @@ def admin_products():
     
     if request.method == 'POST':
         product_name = request.form.get('product_name', '').strip()
+        product_category = request.form.get('product_category', 'General').strip()
         product_price = request.form.get('product_price', '').strip()
         product_gst = request.form.get('product_gst', '0.18').strip()
+        product_stock = request.form.get('product_stock', '0').strip()
 
         try:
             if not product_name:
@@ -557,10 +721,14 @@ def admin_products():
             product_gst = float(product_gst)
             if product_gst < 0 or product_gst > 1:
                 raise ValueError('GST must be between 0 and 1 (0-100%).')
+            
+            product_stock = int(product_stock)
+            if product_stock < 0:
+                raise ValueError('Stock cannot be negative.')
 
             conn.execute(
-                'INSERT INTO products (name, price, gst, created_date) VALUES (?, ?, ?, ?)',
-                (product_name, product_price, product_gst, datetime.now().strftime('%d-%m-%Y'))
+                'INSERT INTO products (name, category, price, gst, stock, created_date) VALUES (?, ?, ?, ?, ?, ?)',
+                (product_name, product_category, product_price, product_gst, product_stock, datetime.now().strftime('%d-%m-%Y'))
             )
             conn.commit()
             flash('Product added successfully.', 'success')
@@ -666,6 +834,9 @@ def user_dashboard():
 @app.route('/create_invoice', methods=['GET', 'POST'])
 @require_role('user')
 def create_invoice():
+    if session.get('role') != 'user':
+        return redirect(url_for('home'))
+    
     conn = get_db_connection()
     
     if request.method == 'POST':
@@ -702,30 +873,74 @@ def create_invoice():
             product_name = product['name']
             gst_rate = float(product['gst'] if product['gst'] is not None else 0.18)
             
+            # Stock management: Check available stock
+            current_stock = product['stock'] if product['stock'] is not None else 0
+            if current_stock < quantity:
+                raise ValueError(f'Insufficient stock. Available: {current_stock}, Requested: {quantity}')
+            
             subtotal = round(quantity * price, 2)
             tax_calc = calculate_tax(subtotal, gst_rate)
             total = tax_calc['final_total']
             date = datetime.now().strftime('%d-%m-%Y')
 
+            print(f"DEBUG create_invoice: customer={customer!r} product_id={product_id} quantity={quantity}")
+
+            # Soft email lookup — never crashes invoice creation for missing email
+            user_row = conn.execute(
+                "SELECT email FROM users WHERE username = ?",
+                (customer.strip(),)
+            ).fetchone()
+            customer_email = user_row['email'] if user_row else None
+
+            # SAVE INVOICE
             conn.execute(
                 'INSERT INTO invoices (customer, product, quantity, price, total, date, created_by, product_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                 (customer, product_name, quantity, price, total, date, session.get('username'), product_id)
             )
+
+            # Reduce stock after invoice creation
+            conn.execute(
+                'UPDATE products SET stock = stock - ? WHERE id = ?',
+                (quantity, product_id)
+            )
+
             conn.commit()
-            
+            conn.close()
+
+            # SEND EMAIL — failure is non-fatal
+            try:
+                if customer_email:
+                    send_invoice_email(customer_email, customer, total)
+                    flash('Invoice created successfully and email sent.', 'success')
+                else:
+                    flash('Invoice created successfully. (No email on file for this customer)', 'success')
+            except Exception as email_err:
+                print(f"Email failed (non-fatal): {email_err}")
+                flash('Invoice created successfully. Email could not be sent.', 'warning')
+
             session['invoice_email_preview'] = generate_email(customer, product_name, total, 0)
-            flash('Invoice created successfully.', 'success')
             return redirect(url_for('user_dashboard'))
 
         except ValueError as error:
+            conn.close()
             flash(str(error), 'danger')
+            return redirect(url_for('create_invoice'))
         except Exception as e:
-            flash(f'Error creating invoice: {str(e)}', 'danger')
+            print(f"ERROR create_invoice: {e}")
+            conn.close()
+            flash(f'Unexpected error creating invoice: {str(e)}', 'danger')
+            return redirect(url_for('create_invoice'))
 
-    products = conn.execute('SELECT * FROM products ORDER BY name').fetchall()
+    # GET — load dropdowns (convert Rows → dicts so tojson can serialize them)
+    employees = [dict(r) for r in conn.execute(
+        'SELECT username, email FROM users WHERE role = ? ORDER BY username', ('user',)
+    ).fetchall()]
+    products = [dict(r) for r in conn.execute(
+        'SELECT * FROM products ORDER BY category, name'
+    ).fetchall()]
     conn.close()
-    
-    return render_template('user/create_invoice.html', products=products)
+
+    return render_template('user/create_invoice.html', employees=employees, products=products)
 
 
 @app.route('/api/product_price/<int:product_id>')
@@ -967,6 +1182,7 @@ def dashboard():
 
 if __name__ == '__main__':
     init_db()
+    seed_employee()
     print(app.url_map)
     app.run(debug=True, use_reloader=False)
 
