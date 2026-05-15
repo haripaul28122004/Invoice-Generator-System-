@@ -13,7 +13,7 @@
     </div>
     <div class="stat-card">
         <div class="stat-label">Total Revenue</div>
-        <div class="stat-value">Rs. {{ "%.2f"|format(total_revenue) }}</div>
+        <div class="stat-value">₹{{ "%.2f"|format(total_revenue) }}</div>
     </div>
     <div class="stat-card">
         <div class="stat-label">Total Customers</div>
@@ -55,62 +55,21 @@
     </div>
 </div>
 
-<div class="table-container">
-    <div class="table-header">
-        <h2>Recent Invoices</h2>
-    </div>
-    
-    {% if recent_invoices %}
-    <table>
-        <thead>
-            <tr>
-                <th>Invoice ID</th>
-                <th>Customer</th>
-                <th>Product</th>
-                <th>Quantity</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for invoice in recent_invoices %}
-            <tr>
-                <td><strong>#{{ invoice['id'] }}</strong></td>
-                <td>{{ invoice['customer'] }}</td>
-                <td>{{ invoice['product'] }}</td>
-                <td>{{ invoice['quantity'] }}</td>
-                <td>Rs. {{ "%.2f"|format(invoice['total']) }}</td>
-                <td>{{ invoice['date'] }}</td>
-                <td class="table-actions">
-                    <a href="{{ url_for('view_invoice', invoice_id=invoice['id']) }}" class="button secondary mini">View</a>
-                    <form method="POST" action="{{ url_for('admin_delete_invoice', invoice_id=invoice['id']) }}" style="display:inline;">
-                        <button type="submit" class="button danger mini" onclick="return confirm('Are you sure?')">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div style="padding: 2rem; text-align: center; color: var(--text-secondary);">
-        <p>No invoices yet.</p>
-    </div>
-    {% endif %}
-</div>
+
 
 <script>
-    // Parse chart data from backend
-    const salesData = {{ sales_chart_data | safe }};
-    const productQtyData = {{ product_qty_chart_data | safe }};
-    const revenueDistData = {{ revenue_dist_chart_data | safe }};
+document.addEventListener('DOMContentLoaded', function () {
+    // Parse chart data — already json.dumps'd by backend, quoted for safe JS injection
+    const salesData      = JSON.parse('{{ sales_chart_data | safe }}');
+    const productQtyData = JSON.parse('{{ product_qty_chart_data | safe }}');
+    const revenueDistData = JSON.parse('{{ revenue_dist_chart_data | safe }}');
 
-    // Chart.js color palette
-    const colors = ['#4f46e5', '#6366f1', '#818cf8', '#c7d2fe', '#e0e7ff', '#10b981', '#f59e0b', '#ef4444'];
+    const colors = ['#4f46e5','#6366f1','#818cf8','#c7d2fe','#e0e7ff','#10b981','#f59e0b','#ef4444'];
 
-    // Sales Over Time - Line Chart
-    if (salesData.dates.length > 0) {
-        new Chart(document.getElementById('salesChart'), {
+    // ── Sales Over Time — Line Chart ────────────────────────────────
+    const salesCanvas = document.getElementById('salesChart');
+    if (salesCanvas && salesData.dates && salesData.dates.length > 0) {
+        new Chart(salesCanvas, {
             type: 'line',
             data: {
                 labels: salesData.dates,
@@ -118,30 +77,37 @@
                     label: 'Revenue (₹)',
                     data: salesData.revenues,
                     borderColor: '#4f46e5',
-                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    backgroundColor: 'rgba(79,70,229,0.1)',
                     tension: 0.4,
-                    fill: true
+                    fill: true,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: true } },
-                scales: { y: { beginAtZero: true } }
+                scales: { y: { beginAtZero: true,
+                    ticks: { callback: v => '₹' + v.toLocaleString() } } }
             }
         });
+    } else if (salesCanvas) {
+        salesCanvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:#94a3b8;">No sales data yet.</p>';
     }
 
-    // Product Quantity - Bar Chart
-    if (productQtyData.names.length > 0) {
-        new Chart(document.getElementById('productQtyChart'), {
+    // ── Product Quantity — Bar Chart ────────────────────────────────
+    const prodCanvas = document.getElementById('productQtyChart');
+    if (prodCanvas && productQtyData.names && productQtyData.names.length > 0) {
+        new Chart(prodCanvas, {
             type: 'bar',
             data: {
                 labels: productQtyData.names,
                 datasets: [{
                     label: 'Quantity Sold',
                     data: productQtyData.quantities,
-                    backgroundColor: colors.slice(0, productQtyData.names.length)
+                    backgroundColor: colors.slice(0, productQtyData.names.length),
+                    borderRadius: 4
                 }]
             },
             options: {
@@ -151,11 +117,14 @@
                 scales: { y: { beginAtZero: true } }
             }
         });
+    } else if (prodCanvas) {
+        prodCanvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:#94a3b8;">No product data yet.</p>';
     }
 
-    // Revenue Distribution - Pie Chart
-    if (revenueDistData.names.length > 0) {
-        new Chart(document.getElementById('revenueDistChart'), {
+    // ── Revenue Distribution — Pie Chart ────────────────────────────
+    const revCanvas = document.getElementById('revenueDistChart');
+    if (revCanvas && revenueDistData.names && revenueDistData.names.length > 0) {
+        new Chart(revCanvas, {
             type: 'pie',
             data: {
                 labels: revenueDistData.names,
@@ -170,6 +139,9 @@
                 plugins: { legend: { position: 'bottom' } }
             }
         });
+    } else if (revCanvas) {
+        revCanvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:#94a3b8;">No revenue data yet.</p>';
     }
+});
 </script>
 {% endblock %}

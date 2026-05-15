@@ -13,7 +13,7 @@
     </div>
     <div class="stat-card">
         <div class="stat-label">Total Amount</div>
-        <div class="stat-value">Rs. {{ "%.2f"|format(total_revenue) }}</div>
+        <div class="stat-value">₹{{ "%.2f"|format(total_revenue) }}</div>
     </div>
 </div>
 
@@ -27,9 +27,10 @@
         <thead>
             <tr>
                 <th>Invoice ID</th>
+                <th>Customer Name</th>
                 <th>Product</th>
-                <th>Quantity</th>
-                <th>Price</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
                 <th>Total</th>
                 <th>Date</th>
                 <th>Actions</th>
@@ -38,15 +39,16 @@
         <tbody>
             {% for invoice in invoices %}
             <tr>
-                <td>#{{ invoice['id'] }}</td>
+                <td><strong>#{{ invoice['id'] }}</strong></td>
+                <td>{{ invoice['customer'] }}</td>
                 <td>{{ invoice['product'] }}</td>
                 <td>{{ invoice['quantity'] }}</td>
-                <td>Rs. {{ "%.2f"|format(invoice['price']) }}</td>
-                <td><strong>Rs. {{ "%.2f"|format(invoice['total']) }}</strong></td>
+                <td>₹{{ "%.2f"|format(invoice['price']) }}</td>
+                <td><strong>₹{{ "%.2f"|format(invoice['total']) }}</strong></td>
                 <td>{{ invoice['date'] }}</td>
                 <td class="table-actions">
                     <a href="{{ url_for('view_invoice', invoice_id=invoice['id']) }}" class="button secondary mini">View</a>
-                    <a href="{{ url_for('download_invoice', invoice_id=invoice['id']) }}" class="button mini">Download PDF</a>
+                    <a href="{{ url_for('download_invoice', invoice_id=invoice['id']) }}" class="button mini">⬇ PDF</a>
                 </td>
             </tr>
             {% endfor %}
@@ -54,7 +56,8 @@
     </table>
     {% else %}
     <div style="padding: 2rem; text-align: center; color: var(--text-secondary);">
-        <p>No invoices found. Please check back later.</p>
+        <p>No invoices found for your email. Ask the employee to use
+           <strong>{{ session.get('email') }}</strong> when creating your invoice.</p>
     </div>
     {% endif %}
 </div>

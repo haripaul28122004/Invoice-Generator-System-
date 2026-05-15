@@ -4,18 +4,25 @@
 <div class="form-container">
     <h2>Create New Invoice</h2>
     <form method="POST">
-        <!-- Employee Selection Dropdown -->
+        <!-- Customer Details -->
+        <div class="form-row two-col">
+            <div class="form-group">
+                <label for="customer">Customer Name *</label>
+                <input type="text" id="customer" name="customer"
+                       placeholder="Enter customer name" required>
+            </div>
+            <div class="form-group">
+                <label for="customer_email">Customer Email *</label>
+                <input type="email" id="customer_email" name="customer_email"
+                       placeholder="Enter customer email" required>
+            </div>
+        </div>
         <div class="form-row">
             <div class="form-group">
-                <label for="customer">Select Employee *</label>
-                <select id="customer" name="customer" required>
-                    <option value="">-- Select an Employee --</option>
-                    {% for emp in employees %}
-                    <option value="{{ emp['username'] }}">
-                        {{ emp['username'] }} ({{ emp['email'] }})
-                    </option>
-                    {% endfor %}
-                </select>
+                <label for="customer_address">Customer Address *</label>
+                <textarea id="customer_address" name="customer_address"
+                          placeholder="Enter customer address" rows="2" required
+                          style="resize:vertical;width:100%;"></textarea>
             </div>
         </div>
 
@@ -48,14 +55,14 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="product_id">Select Product *</label>
-                <select id="product_id" name="product_id" required onchange="updatePriceAndGST()">
+                <select id="product_id" name="product_id" required>
                     <option value="">Select a product...</option>
                     {% for product in products %}
-                    <option value="{{ product['id'] }}" 
-                        data-name="{{ product['name'] }}" 
-                        data-category="{{ product['category'] }}" 
-                        data-price="{{ product['price'] }}" 
-                        data-gst="{{ product['gst'] or 0.18 }}" 
+                    <option value="{{ product['id'] }}"
+                        data-name="{{ product['name'] }}"
+                        data-category="{{ product['category'] }}"
+                        data-price="{{ product['price'] }}"
+                        data-gst="{{ product['gst'] or 0.18 }}"
                         data-stock="{{ product['stock'] or 0 }}"
                         {% if (product['stock'] or 0) == 0 %}disabled{% endif %}>
                         {{ product['name'] }} ({{ product['category'] }}) - ₹{{ "%.2f"|format(product['price']) }} | Stock: {{ product['stock'] or 0 }}
@@ -113,67 +120,90 @@
 </div>
 
 <script>
-    const productsData = {{ products|tojson }};
+document.addEventListener("DOMContentLoaded", function () {
 
-    const productSelect = document.getElementById('product_id');
-    const quantityInput = document.getElementById('quantity');
-    const priceInput = document.getElementById('price');
-    const taxSummary = document.getElementById('taxSummary');
-    const searchInput = document.getElementById('searchProduct');
-    const categoryFilter = document.getElementById('categoryFilter');
+    // ── Data ──────────────────────────────────────────────────────
+    const productsData = JSON.parse('{{ products | tojson | safe }}');
+    console.log("Products loaded:", productsData.length);
+
+    // ── DOM refs ──────────────────────────────────────────────────
+    const productSelect      = document.getElementById('product_id');
+    const quantityInput      = document.getElementById('quantity');
+    const priceInput         = document.getElementById('price');
+    const taxSummary         = document.getElementById('taxSummary');
+    const searchInput        = document.getElementById('searchProduct');
+    const categoryFilter     = document.getElementById('categoryFilter');
     const stockInfoContainer = document.getElementById('stockInfoContainer');
-    const stockInfo = document.getElementById('stockInfo');
-    const stockWarning = document.getElementById('stockWarning');
+    const stockInfo          = document.getElementById('stockInfo');
+    const stockWarning       = document.getElementById('stockWarning');
 
-    let currentGST = 0.18;
+    if (!productSelect) return; // safety guard
+
+    let currentGST   = 0.18;
     let currentStock = 0;
 
-    // Search functionality
-    searchInput.addEventListener('keyup', function () {
-        const filter = this.value.toLowerCase();
-        const category = categoryFilter.value.toLowerCase();
-        const options = productSelect.options;
+    // ── Rebuild product dropdown from filtered array ───────────────
+    function updateProductDropdown(filtered) {
+        const prev = productSelect.value; // keep selection if still valid
+        productSelect.innerHTML = '<option value="">Select a product...</option>';
 
-        for (let i = 1; i < options.length; i++) {
-            const option = options[i];
-            const text = option.text.toLowerCase();
-            const optionCategory = option.dataset.category.toLowerCase();
-            const matchesCategory = category === '' || optionCategory === category;
-            const matchesSearch = text.includes(filter);
-            
-            option.style.display = matchesCategory && matchesSearch ? '' : 'none';
+        filtered.forEach(function (p) {
+            const opt = document.createElement('option');
+            opt.value            = p.id;
+            opt.dataset.name     = p.name;
+            opt.dataset.category = p.category;
+            opt.dataset.price    = p.price;
+            opt.dataset.gst      = p.gst || 0.18;
+            opt.dataset.stock    = p.stock || 0;
+            opt.disabled         = (p.stock || 0) === 0;
+            opt.textContent      = p.name + ' (' + p.category + ') - ₹' +
+                                   parseFloat(p.price).toFixed(2) +
+                                   ' | Stock: ' + (p.stock || 0);
+            if (String(p.id) === prev) opt.selected = true;
+            productSelect.appendChild(opt);
+        });
+
+        // Reset price/GST if selected product is no longer in list
+        if (!productSelect.value) {
+            priceInput.value = '';
+            taxSummary.style.display = 'none';
+            stockInfoContainer.style.display = 'none';
+            currentGST = 0.18;
+            currentStock = 0;
         }
-    });
+    }
 
-    // Category filter functionality
-    categoryFilter.addEventListener('change', function () {
-        const category = this.value.toLowerCase();
-        const filter = searchInput.value.toLowerCase();
-        const options = productSelect.options;
+    // ── Apply both search + category filters ──────────────────────
+    function applyFilters() {
+        const searchVal  = searchInput.value.trim().toLowerCase();
+        const catVal     = categoryFilter.value.toLowerCase();
 
-        for (let i = 1; i < options.length; i++) {
-            const option = options[i];
-            const text = option.text.toLowerCase();
-            const optionCategory = option.dataset.category.toLowerCase();
-            const matchesCategory = category === '' || optionCategory === category;
-            const matchesSearch = filter === '' || text.includes(filter);
-            
-            option.style.display = matchesCategory && matchesSearch ? '' : 'none';
-        }
-    });
+        const filtered = productsData.filter(function (p) {
+            const matchesCat    = catVal === '' || p.category.toLowerCase() === catVal;
+            const matchesSearch = searchVal === '' ||
+                                  p.name.toLowerCase().includes(searchVal) ||
+                                  p.category.toLowerCase().includes(searchVal);
+            return matchesCat && matchesSearch;
+        });
 
-    // Update price, GST, and stock
+        updateProductDropdown(filtered);
+    }
+
+    // ── Update price + GST when product selected ──────────────────
     function updatePriceAndGST() {
-        const selectedOption = productSelect.options[productSelect.selectedIndex];
-        if (selectedOption && selectedOption.value) {
-            const price = parseFloat(selectedOption.dataset.price) || 0;
-            currentGST = parseFloat(selectedOption.dataset.gst) || 0.18;
-            currentStock = parseInt(selectedOption.dataset.stock) || 0;
-            
+        const selected = productSelect.options[productSelect.selectedIndex];
+        if (selected && selected.value) {
+            const price  = parseFloat(selected.dataset.price) || 0;
+            currentGST   = parseFloat(selected.dataset.gst)   || 0.18;
+            currentStock = parseInt(selected.dataset.stock)    || 0;
+
             priceInput.value = price.toFixed(2);
-            stockInfo.value = currentStock + ' units';
+            stockInfo.value  = currentStock + ' units';
             stockInfoContainer.style.display = 'block';
-            
+
+            console.log('Product:', selected.textContent.trim(),
+                        '| Price:', price, '| GST:', currentGST, '| Stock:', currentStock);
+
             calculateTax();
         } else {
             priceInput.value = '';
@@ -182,33 +212,37 @@
         }
     }
 
-    // Calculate tax and check stock
+    // ── Real-time tax calculator ───────────────────────────────────
     function calculateTax() {
         const quantity = parseInt(quantityInput.value) || 0;
-        const price = parseFloat(priceInput.value) || 0;
+        const price    = parseFloat(priceInput.value)  || 0;
 
-        // Check stock availability
-        if (quantity > currentStock && currentStock > 0) {
-            stockWarning.style.display = 'block';
-        } else {
-            stockWarning.style.display = 'none';
-        }
+        stockWarning.style.display =
+            (quantity > currentStock && currentStock > 0) ? 'block' : 'none';
 
         if (quantity <= 0 || price <= 0) {
             taxSummary.style.display = 'none';
             return;
         }
 
-        const subtotal = quantity * price;
-        const tax = subtotal * currentGST;
+        const subtotal   = quantity * price;
+        const tax        = subtotal * currentGST;
         const finalTotal = subtotal + tax;
 
-        document.getElementById('subtotalValue').textContent = subtotal.toFixed(2);
-        document.getElementById('taxValue').textContent = tax.toFixed(2);
-        document.getElementById('gstRate').textContent = (currentGST * 100).toFixed(0);
+        document.getElementById('subtotalValue').textContent   = subtotal.toFixed(2);
+        document.getElementById('taxValue').textContent        = tax.toFixed(2);
+        document.getElementById('gstRate').textContent         = (currentGST * 100).toFixed(0);
         document.getElementById('finalTotalValue').textContent = finalTotal.toFixed(2);
 
         taxSummary.style.display = 'block';
     }
+
+    // ── Event listeners ───────────────────────────────────────────
+    productSelect.addEventListener('change',  updatePriceAndGST);
+    quantityInput.addEventListener('input',   calculateTax);
+    searchInput.addEventListener('input',     applyFilters);
+    categoryFilter.addEventListener('change', applyFilters);
+
+}); // end DOMContentLoaded
 </script>
 {% endblock %}

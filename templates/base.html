@@ -12,12 +12,11 @@
         <nav>
             {% if session.get('username') %}
                 {% if session.get('role') == 'admin' %}
-                    <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+                    <a href="{{ url_for('admin_dashboard') }}">Analytics</a>
                     <a href="{{ url_for('admin_customers') }}">Customers</a>
                     <a href="{{ url_for('admin_products') }}">Products</a>
                     <a href="{{ url_for('logout') }}" class="button mini">Logout</a>
                 {% elif session.get('role') == 'user' %}
-                    <a href="{{ url_for('user_dashboard') }}">Dashboard</a>
                     <a href="{{ url_for('create_invoice') }}">Create Invoice</a>
                     <a href="{{ url_for('user_customers') }}">Customers</a>
                     <a href="{{ url_for('logout') }}" class="button mini">Logout</a>

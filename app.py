@@ -4,15 +4,56 @@ import sqlite3
 import io
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
+
 from functools import wraps
 import json
+import os, glob, shutil
+
+try:
+    import pdfkit
+
+    # ── 1. Try every known install location ───────────────────────
+    _WKHTMLTOPDF_CANDIDATES = [
+        r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe',
+        r'C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe',
+        r'C:\wkhtmltopdf\bin\wkhtmltopdf.exe',
+        r'D:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe',
+        r'D:\wkhtmltopdf\bin\wkhtmltopdf.exe',
+        os.path.expanduser(r'~\wkhtmltopdf\bin\wkhtmltopdf.exe'),
+    ]
+
+    print("[pdfkit] Scanning for wkhtmltopdf.exe ...")
+    for _p in _WKHTMLTOPDF_CANDIDATES:
+        print(f"  {'FOUND' if os.path.exists(_p) else 'not found':10s} {_p}")
+
+    _WKHTMLTOPDF = next(
+        (p for p in _WKHTMLTOPDF_CANDIDATES if os.path.exists(p)), None
+    )
+
+    # ── 2. Try system PATH ────────────────────────────────────────
+    if not _WKHTMLTOPDF:
+        _WKHTMLTOPDF = shutil.which('wkhtmltopdf')
+        if _WKHTMLTOPDF:
+            print(f"[pdfkit] Found via system PATH: {_WKHTMLTOPDF}")
+
+    # ── 3. Build config or warn ───────────────────────────────────
+    if _WKHTMLTOPDF:
+        _PDFKIT_CONFIG = pdfkit.configuration(wkhtmltopdf=_WKHTMLTOPDF)
+        print(f"[pdfkit] READY — using: {_WKHTMLTOPDF}")
+    else:
+        _PDFKIT_CONFIG = None
+        print("[pdfkit] *** wkhtmltopdf.exe NOT FOUND on this system. ***")
+        print("[pdfkit] Download installer: https://wkhtmltopdf.org/downloads.html")
+        print("[pdfkit] Install to default path, then restart Flask.")
+
+except ImportError:
+    pdfkit = None
+    _PDFKIT_CONFIG = None
+    print("[pdfkit] WARNING: pdfkit not installed. Run: pip install pdfkit")
 
 app = Flask(__name__)
 app.secret_key = 'invoice_flow_secret_key_2026'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)
 DATABASE = 'database.db'
 ADMIN_EMAIL = 'haripaul28122004@gmail.com'
 ADMIN_PASSWORD = 'haripaul007'
@@ -83,16 +124,26 @@ def init_db():
         )
     ''')
     
-    # Migration: Add category and stock columns if they don't exist
+    # Migration: add new columns if they don't exist
     try:
         cur.execute("PRAGMA table_info(products)")
-        columns = [col[1] for col in cur.fetchall()]
-        
-        if 'category' not in columns:
+        prod_cols = [col[1] for col in cur.fetchall()]
+        if 'category' not in prod_cols:
             cur.execute("ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'General'")
-        if 'stock' not in columns:
+        if 'stock' not in prod_cols:
             cur.execute("ALTER TABLE products ADD COLUMN stock INTEGER DEFAULT 0")
-        
+
+        cur.execute("PRAGMA table_info(invoices)")
+        inv_cols = [col[1] for col in cur.fetchall()]
+        if 'customer_email' not in inv_cols:
+            cur.execute("ALTER TABLE invoices ADD COLUMN customer_email TEXT DEFAULT ''")
+        if 'customer_address' not in inv_cols:
+            cur.execute("ALTER TABLE invoices ADD COLUMN customer_address TEXT DEFAULT ''")
+        if 'gst_rate' not in inv_cols:
+            cur.execute("ALTER TABLE invoices ADD COLUMN gst_rate REAL DEFAULT 0.18")
+        if 'gst_amount' not in inv_cols:
+            cur.execute("ALTER TABLE invoices ADD COLUMN gst_amount REAL DEFAULT 0")
+
         conn.commit()
     except Exception as e:
         print(f"Migration note: {e}")
@@ -151,53 +202,529 @@ def calculate_tax(subtotal, gst_rate=0.18):
     return {"tax": tax, "final_total": final_total, "gst_rate": gst_rate}
 
 
-def send_invoice_email(email, name, total):
-    """Send invoice email to customer"""
+def _generate_pdf_bytes(invoice_dict):
+    """Render invoice_pdf.html and convert to PDF bytes via pdfkit/wkhtmltopdf."""
+    print("USING NEW PDF SYSTEM")
+    if not pdfkit or not _PDFKIT_CONFIG:
+        raise RuntimeError(
+            "wkhtmltopdf not found. Install it from https://wkhtmltopdf.org/downloads.html "
+            "to C:\\Program Files\\wkhtmltopdf\\ and restart the server."
+        )
+    html_str = render_template('invoice_pdf.html', invoice=invoice_dict)
+    options = {
+        'page-size':      'A4',
+        'margin-top':     '10mm',
+        'margin-right':   '10mm',
+        'margin-bottom':  '10mm',
+        'margin-left':    '10mm',
+        'encoding':       'UTF-8',
+        'no-outline':     None,
+        'enable-local-file-access': None,
+    }
+    return pdfkit.from_string(html_str, False,
+                              configuration=_PDFKIT_CONFIG,
+                              options=options)
+
+
+def _number_to_words(amount):
+    """Convert a number to Indian English words for amount-in-words line."""
+    ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven',
+            'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen',
+            'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+    tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty',
+            'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+    def two_digits(n):
+        if n < 20:
+            return ones[n]
+        return (tens[n // 10] + (' ' + ones[n % 10] if n % 10 else '')).strip()
+
+    def three_digits(n):
+        if n == 0:
+            return ''
+        h = n // 100
+        r = n % 100
+        parts = []
+        if h:
+            parts.append(ones[h] + ' Hundred')
+        if r:
+            parts.append(two_digits(r))
+        return ' '.join(parts)
+
+    n = int(round(amount))
+    if n == 0:
+        return 'Zero'
+    parts = []
+    crore = n // 10000000;  n %= 10000000
+    lakh  = n // 100000;    n %= 100000
+    thousand = n // 1000;   n %= 1000
+    remainder = n
+    if crore:
+        parts.append(three_digits(crore) + ' Crore')
+    if lakh:
+        parts.append(three_digits(lakh) + ' Lakh')
+    if thousand:
+        parts.append(three_digits(thousand) + ' Thousand')
+    if remainder:
+        parts.append(three_digits(remainder))
+    return ' '.join(parts)
+
+
+def build_invoice_pdf(invoice):
+    """Build an Amazon-style professional PDF for an invoice and return raw bytes."""
+    # Convert sqlite3.Row (or any mapping) to a plain dict so .get() works
+    invoice = dict(invoice)
+    print("INVOICE DATA:", invoice)
+
+    from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
+
+    # ── Style helpers ──────────────────────────────────────────────
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30
+    )
+    styles = getSampleStyleSheet()
+    W = A4[0] - 60          # usable width (points)
+
+    def style(name='Normal', **kw):
+        from reportlab.lib.styles import ParagraphStyle
+        return ParagraphStyle(name, parent=styles[name], **kw)
+
+    BRAND   = colors.HexColor('#131921')   # Amazon dark header
+    ACCENT  = colors.HexColor('#FF9900')   # Amazon orange
+    LIGHT   = colors.HexColor('#F3F3F3')
+    MID     = colors.HexColor('#D5D9D9')
+    WHITE   = colors.white
+    DARK    = colors.HexColor('#0F1111')
+    MUTED   = colors.HexColor('#565959')
+
+    s_normal  = style('Normal', fontSize=8,  leading=12, textColor=DARK)
+    s_small   = style('Normal', fontSize=7,  leading=10, textColor=MUTED)
+    s_bold    = style('Normal', fontSize=8,  leading=12, textColor=DARK,
+                      fontName='Helvetica-Bold')
+    s_heading = style('Normal', fontSize=9,  leading=13, textColor=DARK,
+                      fontName='Helvetica-Bold')
+    s_brand   = style('Normal', fontSize=20, leading=24, textColor=WHITE,
+                      fontName='Helvetica-Bold')
+    s_inv_lbl = style('Normal', fontSize=9,  leading=13, textColor=WHITE)
+    s_inv_big = style('Normal', fontSize=22, leading=26, textColor=ACCENT,
+                      fontName='Helvetica-Bold')
+    s_right   = style('Normal', fontSize=8,  leading=12, textColor=DARK,
+                      alignment=TA_RIGHT)
+    s_right_b = style('Normal', fontSize=8,  leading=12, textColor=DARK,
+                      fontName='Helvetica-Bold', alignment=TA_RIGHT)
+    s_total_r = style('Normal', fontSize=9,  leading=14, textColor=WHITE,
+                      fontName='Helvetica-Bold', alignment=TA_RIGHT)
+
+    elements = []
+
+    # ══════════════════════════════════════════════════════════════
+    # PART 1 — HEADER: Company (left) | INVOICE label (right)
+    # ══════════════════════════════════════════════════════════════
+    company_block = Paragraph(
+        '<b><font size="14">InvoiceFlow</font></b><br/>'
+        '<font size="7" color="#AAAAAA">GSTIN: 22ABCDE1234F1Z5</font><br/>'
+        '<font size="7" color="#AAAAAA">Hyderabad, Telangana – 500001</font><br/>'
+        '<font size="7" color="#AAAAAA">Ph: +91-9999999999 | info@invoiceflow.in</font>',
+        s_brand
+    )
+    inv_id   = invoice.get('id', 0)
+    inv_date = invoice.get('date', 'N/A')
+    invoice_block = [
+        [Paragraph('INVOICE', s_inv_big)],
+        [Paragraph('Original for Recipient', s_inv_lbl)],
+        [Paragraph(f'Invoice No: <b>INV-{inv_id:05d}</b>', s_inv_lbl)],
+        [Paragraph(f'Date: <b>{inv_date}</b>', s_inv_lbl)],
+    ]
+    inv_inner = Table(invoice_block, colWidths=[W * 0.38])
+    inv_inner.setStyle(TableStyle([
+        ('ALIGN',         (0, 0), (-1, -1), 'RIGHT'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+    ]))
+
+    header_tbl = Table(
+        [[company_block, inv_inner]],
+        colWidths=[W * 0.60, W * 0.40]
+    )
+    header_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), BRAND),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 16),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 16),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 14),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 14),
+    ]))
+    elements.append(header_tbl)
+    elements.append(Spacer(1, 10))
+
+    # ══════════════════════════════════════════════════════════════
+    # PART 2 — Orange accent bar
+    # ══════════════════════════════════════════════════════════════
+    accent_bar = Table([['']], colWidths=[W])
+    accent_bar.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), ACCENT),
+        ('TOPPADDING',    (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    elements.append(accent_bar)
+    elements.append(Spacer(1, 10))
+
+    # ══════════════════════════════════════════════════════════════
+    # PART 3 — 3-COLUMN: Customer | Billing | Shipping
+    # ══════════════════════════════════════════════════════════════
+    addr     = invoice.get('customer_address', '') or 'N/A'
+    email    = invoice.get('customer_email', '')  or 'N/A'
+    customer = invoice.get('customer', 'N/A')     or 'N/A'
+    col_w = W / 3.0
+
+    cust_para = Paragraph(
+        f'<b>Customer Details</b><br/>'
+        f'<font size="8">{customer}</font><br/>'
+        f'<font size="7" color="#565959">{email}</font>',
+        s_normal
+    )
+    bill_para = Paragraph(
+        f'<b>Billing Address</b><br/>'
+        f'<font size="8">{addr}</font>',
+        s_normal
+    )
+    ship_para = Paragraph(
+        f'<b>Shipping Address</b><br/>'
+        f'<font size="8">{addr}</font>',
+        s_normal
+    )
+
+    addr_tbl = Table([[cust_para, bill_para, ship_para]],
+                     colWidths=[col_w, col_w, col_w])
+    addr_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), LIGHT),
+        ('BOX',           (0, 0), (-1, -1), 0.5, MID),
+        ('INNERGRID',     (0, 0), (-1, -1), 0.5, MID),
+        ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 10),
+    ]))
+    elements.append(addr_tbl)
+    elements.append(Spacer(1, 14))
+
+    # ══════════════════════════════════════════════════════════════
+    # PART 4 — PRODUCT TABLE (Amazon-style 7 columns)
+    # ══════════════════════════════════════════════════════════════
+    gst_rate = 0.18
+    try:
+        conn_pdf = sqlite3.connect(DATABASE)
+        row = conn_pdf.execute(
+            'SELECT gst FROM products WHERE id = ?', (invoice.get('product_id') or 0,)
+        ).fetchone()
+        if row and row[0]:
+            gst_rate = float(row[0])
+        conn_pdf.close()
+    except Exception:
+        pass
+
+    price    = float(invoice.get('price', 0) or 0)
+    qty      = int(invoice.get('quantity', 0) or 0)
+    taxable  = round(price * qty, 2)
+    gst_amt  = round(taxable * gst_rate, 2)
+    grand    = round(taxable + gst_amt, 2)
+    gst_pct  = int(round(gst_rate * 100))
+
+    # Column widths: #, Item, Rate, Qty, Taxable Value, Tax Amount, Total
+    cw = [22, 170, 65, 38, 80, 80, 77]
+
+    def hdr_p(txt):
+        return Paragraph(f'<font color="white"><b>{txt}</b></font>', s_normal)
+
+    def cell_p(txt, right=False):
+        return Paragraph(txt, s_right if right else s_normal)
+
+    prod_name = invoice.get('product', 'N/A') or 'N/A'
+    category  = ''
+    try:
+        conn_pdf2 = sqlite3.connect(DATABASE)
+        pr = conn_pdf2.execute(
+            'SELECT category FROM products WHERE id = ?', (invoice.get('product_id') or 0,)
+        ).fetchone()
+        if pr:
+            category = pr[0] or ''
+        conn_pdf2.close()
+    except Exception:
+        pass
+
+    item_cell = Paragraph(
+        f'<b>{prod_name}</b><br/>'
+        f'<font size="7" color="#565959">Category: {category} &nbsp;|&nbsp; '
+        f'HSN: 8471 &nbsp;|&nbsp; GST: {gst_pct}%</font>',
+        s_normal
+    )
+
+    table_data = [
+        [hdr_p('#'), hdr_p('Item'), hdr_p('Rate'),
+         hdr_p('Qty'), hdr_p('Taxable Value'),
+         hdr_p('Tax Amount'), hdr_p('Total')],
+        [
+            cell_p('1'),
+            item_cell,
+            cell_p(f'Rs.{price:,.2f}', right=True),
+            cell_p(str(qty)),
+            cell_p(f'Rs.{taxable:,.2f}', right=True),
+            cell_p(f'Rs.{gst_amt:,.2f}', right=True),
+            cell_p(f'Rs.{grand:,.2f}', right=True),
+        ]
+    ]
+
+    prod_tbl = Table(table_data, colWidths=cw)
+    prod_tbl.setStyle(TableStyle([
+        # Header row
+        ('BACKGROUND',    (0, 0), (-1, 0), BRAND),
+        ('TEXTCOLOR',     (0, 0), (-1, 0), WHITE),
+        ('FONTNAME',      (0, 0), (-1, 0), 'Helvetica-Bold'),
+        # Data row
+        ('ROWBACKGROUNDS',(0, 1), (-1, -1), [WHITE, LIGHT]),
+        ('FONTSIZE',      (0, 0), (-1, -1), 8),
+        # Alignment
+        ('ALIGN',  (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN',  (2, 0), (2, -1), 'RIGHT'),
+        ('ALIGN',  (4, 0), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        # Grid & padding
+        ('GRID',          (0, 0), (-1, -1), 0.4, MID),
+        ('TOPPADDING',    (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(prod_tbl)
+    elements.append(Spacer(1, 14))
+
+    # ══════════════════════════════════════════════════════════════
+    # PART 5 — GST BREAKDOWN (right-aligned, Amazon-style)
+    # ══════════════════════════════════════════════════════════════
+    left_w  = W * 0.55
+    right_w = W * 0.45
+
+    gst_rows = [
+        [Paragraph('Taxable Amount', s_right),
+         Paragraph(f'Rs.{taxable:,.2f}', s_right_b)],
+        [Paragraph(f'IGST {gst_pct}%', s_right),
+         Paragraph(f'Rs.{gst_amt:,.2f}', s_right_b)],
+    ]
+    gst_inner = Table(gst_rows, colWidths=[right_w * 0.55, right_w * 0.45])
+    gst_inner.setStyle(TableStyle([
+        ('ALIGN',         (0, 0), (-1, -1), 'RIGHT'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
+        ('LINEBELOW',     (0, -1), (-1, -1), 0.5, MID),
+        ('BACKGROUND',    (0, 0), (-1, -1), LIGHT),
+    ]))
+
+    total_row = Table(
+        [[Paragraph('Grand Total', s_total_r),
+          Paragraph(f'Rs.{grand:,.2f}', s_total_r)]],
+        colWidths=[right_w * 0.55, right_w * 0.45]
+    )
+    total_row.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), BRAND),
+        ('ALIGN',         (0, 0), (-1, -1), 'RIGHT'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 6),
+    ]))
+
+    summary_outer = Table(
+        [['', gst_inner], ['', total_row]],
+        colWidths=[left_w, right_w]
+    )
+    summary_outer.setStyle(TableStyle([
+        ('TOPPADDING',    (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(summary_outer)
+    elements.append(Spacer(1, 16))
+
+    # ══════════════════════════════════════════════════════════════
+    # PART 6 — AMOUNT IN WORDS
+    # ══════════════════════════════════════════════════════════════
+    words = _number_to_words(grand)
+    words_tbl = Table(
+        [[Paragraph(
+            f'<b>Amount in Words:</b> &nbsp;INR {words} Only',
+            style('Normal', fontSize=8, leading=12, textColor=DARK)
+        )]],
+        colWidths=[W]
+    )
+    words_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), LIGHT),
+        ('BOX',           (0, 0), (-1, -1), 0.5, MID),
+        ('TOPPADDING',    (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 10),
+    ]))
+    elements.append(words_tbl)
+    elements.append(Spacer(1, 20))
+
+    # ══════════════════════════════════════════════════════════════
+    # PART 7 — FOOTER
+    # ══════════════════════════════════════════════════════════════
+    footer_tbl = Table(
+        [[Paragraph(
+            '<font size="8" color="#AAAAAA">Thank you for your business. '
+            'This is a computer-generated invoice and requires no signature. '
+            '| Generated by <b>InvoiceFlow</b></font>',
+            s_normal
+        )]],
+        colWidths=[W]
+    )
+    footer_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, -1), BRAND),
+        ('TOPPADDING',    (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 14),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 14),
+    ]))
+    elements.append(footer_tbl)
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer.read()
+
+
+def send_invoice_email(email, name, total, pdf_data=None):
+    """Send a professional invoice email with optional PDF attachment."""
     try:
         if not email or '@' not in email:
             print(f"Invalid email address: {email}")
             return False
-        
+
+        now_str = datetime.now().strftime('%d-%m-%Y')
         msg = Message(
-            subject="Invoice Generated - InvoiceFlow",
+            subject="Your Invoice from InvoiceFlow",
             recipients=[email]
         )
-        
-        msg.body = f"""Hello {name},
 
-Your invoice has been successfully created.
+        # Plain-text fallback
+        msg.body = f"""Dear {name},
 
-Invoice Details:
-- Total Amount: ₹{total:.2f}
-- Date: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}
+We hope this message finds you well.
 
-Thank you for using InvoiceFlow.
+Please find attached your invoice for the recent transaction.
+
+Invoice Summary:
+  Total Amount : ₹{total:.2f}
+  Date         : {now_str}
+
+If you have any questions, feel free to contact us.
+
+Thank you for your business.
 
 Best regards,
-InvoiceFlow Management System
+InvoiceFlow Team
 """
-        
-        msg.html = f"""<html>
-<body style="font-family: Arial, sans-serif;">
-    <h2>Invoice Created Successfully</h2>
-    <p>Hello {name},</p>
-    <p>Your invoice has been successfully created.</p>
-    <hr>
-    <p><strong>Invoice Details:</strong></p>
-    <ul>
-        <li><strong>Total Amount:</strong> ₹{total:.2f}</li>
-        <li><strong>Date:</strong> {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</li>
-    </ul>
-    <hr>
-    <p>Thank you for using InvoiceFlow.</p>
-    <p>Best regards,<br>InvoiceFlow Management System</p>
+
+        # Rich HTML body
+        msg.html = f"""\
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:32px 0;">
+      <table width="580" cellpadding="0" cellspacing="0"
+             style="background:#ffffff;border-radius:8px;
+                    box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#4f46e5;padding:28px 32px;">
+            <h1 style="margin:0;color:#ffffff;font-size:22px;">InvoiceFlow</h1>
+            <p  style="margin:4px 0 0;color:#c7d2fe;font-size:13px;">Invoice Notification</p>
+          </td>
+        </tr>
+
+        <!-- Greeting -->
+        <tr><td style="padding:28px 32px 0;">
+          <p style="margin:0;font-size:15px;color:#1e293b;">Dear <strong>{name}</strong>,</p>
+          <p style="margin:12px 0 0;font-size:14px;color:#475569;line-height:1.6;">
+            We hope this message finds you well.<br>
+            Please find your invoice attached to this email.
+          </p>
+        </td></tr>
+
+        <!-- Summary card -->
+        <tr><td style="padding:24px 32px;">
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="background:#f8fafc;border:1px solid #e2e8f0;
+                        border-radius:6px;border-left:4px solid #4f46e5;">
+            <tr>
+              <td style="padding:18px 20px;">
+                <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;
+                          letter-spacing:1px;color:#64748b;">Invoice Summary</p>
+                <table width="100%">
+                  <tr>
+                    <td style="font-size:13px;color:#475569;">Total Amount</td>
+                    <td align="right" style="font-size:18px;font-weight:bold;
+                                            color:#4f46e5;">₹{total:,.2f}</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:13px;color:#475569;padding-top:6px;">Date</td>
+                    <td align="right" style="font-size:13px;color:#475569;
+                                            padding-top:6px;">{now_str}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+
+        <!-- Note -->
+        <tr><td style="padding:0 32px 24px;">
+          <p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">
+            If you have any questions regarding this invoice, please don't
+            hesitate to contact us.
+          </p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8fafc;padding:18px 32px;
+                     border-top:1px solid #e2e8f0;">
+            <p style="margin:0;font-size:12px;color:#94a3b8;">
+              Thank you for your business &mdash;
+              <strong style="color:#4f46e5;">InvoiceFlow Team</strong>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
 </body>
 </html>"""
-        
+
+        # Attach PDF if provided
+        if pdf_data:
+            msg.attach(
+                filename='invoice.pdf',
+                content_type='application/pdf',
+                data=pdf_data
+            )
+
         mail.send(msg)
         print(f"✓ Email sent successfully to {email}")
         return True
-        
+
     except Exception as e:
         print(f"✗ Email Error: {str(e)}")
         return False
@@ -483,8 +1010,12 @@ def require_role(*roles):
 
 @app.route('/')
 def home():
-    if session.get('username'):
-        return redirect(url_for('dashboard'))
+    if session.get('role') == 'admin':
+        return redirect(url_for('admin_dashboard'))
+    elif session.get('role') == 'user':
+        return redirect(url_for('user_dashboard'))
+    elif session.get('role') == 'customer':
+        return redirect(url_for('customer_dashboard'))
     return render_template('index.html')
 
 
@@ -630,6 +1161,7 @@ def admin_login():
             flash('Invalid admin credentials. Please try again.', 'danger')
             return render_template('admin/login.html')
 
+        session.permanent = True
         session['username'] = email
         session['role'] = 'admin'
         session['user_id'] = 0
@@ -653,9 +1185,6 @@ def admin_dashboard():
     invoice_count = totals['count']
     total_revenue = totals['revenue']
     
-    # Get recent invoices
-    recent_invoices = conn.execute('SELECT * FROM invoices ORDER BY id DESC LIMIT 10').fetchall()
-    
     # Get AI insights
     ai_insights = get_ai_insights(conn)
     
@@ -671,7 +1200,6 @@ def admin_dashboard():
         invoice_count=invoice_count,
         total_revenue=total_revenue,
         customer_count=customer_count,
-        recent_invoices=recent_invoices,
         ai_insights=ai_insights,
         sales_chart_data=json.dumps(sales_chart),
         product_qty_chart_data=json.dumps(product_qty_chart),
@@ -787,6 +1315,7 @@ def user_login():
             flash('Invalid email or password. Please try again.', 'danger')
             return render_template('user/login.html')
 
+        session.permanent = True
         session['username'] = user['username']
         session['email'] = user['email']
         session['user_id'] = user['id']
@@ -809,24 +1338,12 @@ def user_dashboard():
     totals = conn.execute('SELECT COALESCE(SUM(total), 0) AS revenue FROM invoices').fetchone()
     total_revenue = totals['revenue'] if totals else 0
     
-    # Get AI insights
-    ai_insights = get_ai_insights(conn)
-    
-    # Get chart data
-    sales_chart = get_sales_chart_data(conn)
-    product_qty_chart = get_product_quantity_data(conn)
-    revenue_dist_chart = get_revenue_distribution_data(conn)
-    
     conn.close()
 
     return render_template(
         'user/dashboard.html',
         invoices=invoices,
         total_revenue=total_revenue,
-        ai_insights=ai_insights,
-        sales_chart_data=json.dumps(sales_chart),
-        product_qty_chart_data=json.dumps(product_qty_chart),
-        revenue_dist_chart_data=json.dumps(revenue_dist_chart),
         email_preview=session.pop('invoice_email_preview', None)
     )
 
@@ -841,6 +1358,8 @@ def create_invoice():
     
     if request.method == 'POST':
         customer = request.form.get('customer', '').strip()
+        customer_email = request.form.get('customer_email', '').strip()
+        customer_address = request.form.get('customer_address', '').strip()
         product_id = request.form.get('product_id', '').strip()
         quantity = request.form.get('quantity', '').strip()
 
@@ -848,6 +1367,10 @@ def create_invoice():
             # Validate inputs
             if not customer:
                 raise ValueError('Customer name is required.')
+            if not customer_email or '@' not in customer_email:
+                raise ValueError('A valid customer email is required.')
+            if not customer_address:
+                raise ValueError('Customer address is required.')
             if not product_id:
                 raise ValueError('Product is required.')
             if not quantity:
@@ -879,23 +1402,22 @@ def create_invoice():
                 raise ValueError(f'Insufficient stock. Available: {current_stock}, Requested: {quantity}')
             
             subtotal = round(quantity * price, 2)
-            tax_calc = calculate_tax(subtotal, gst_rate)
-            total = tax_calc['final_total']
+            gst_amount = round(subtotal * gst_rate, 2)
+            total = round(subtotal + gst_amount, 2)
             date = datetime.now().strftime('%d-%m-%Y')
 
-            print(f"DEBUG create_invoice: customer={customer!r} product_id={product_id} quantity={quantity}")
-
-            # Soft email lookup — never crashes invoice creation for missing email
-            user_row = conn.execute(
-                "SELECT email FROM users WHERE username = ?",
-                (customer.strip(),)
-            ).fetchone()
-            customer_email = user_row['email'] if user_row else None
+            print(f"DEBUG create_invoice: customer={customer!r} email={customer_email!r} product_id={product_id} quantity={quantity} gst={gst_rate}")
 
             # SAVE INVOICE
             conn.execute(
-                'INSERT INTO invoices (customer, product, quantity, price, total, date, created_by, product_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                (customer, product_name, quantity, price, total, date, session.get('username'), product_id)
+                '''INSERT INTO invoices
+                   (customer, customer_email, customer_address,
+                    product, quantity, price, total, gst_rate, gst_amount,
+                    date, created_by, product_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                (customer, customer_email, customer_address,
+                 product_name, quantity, price, total, gst_rate, gst_amount,
+                 date, session.get('username'), product_id)
             )
 
             # Reduce stock after invoice creation
@@ -905,15 +1427,18 @@ def create_invoice():
             )
 
             conn.commit()
+
+            # Fetch the newly saved invoice to build the PDF
+            new_invoice = conn.execute(
+                'SELECT * FROM invoices ORDER BY id DESC LIMIT 1'
+            ).fetchone()
             conn.close()
 
-            # SEND EMAIL — failure is non-fatal
+            # SEND EMAIL with PDF attachment — failure is non-fatal
             try:
-                if customer_email:
-                    send_invoice_email(customer_email, customer, total)
-                    flash('Invoice created successfully and email sent.', 'success')
-                else:
-                    flash('Invoice created successfully. (No email on file for this customer)', 'success')
+                pdf_bytes = _generate_pdf_bytes(dict(new_invoice))
+                send_invoice_email(customer_email, customer, total, pdf_data=pdf_bytes)
+                flash('Invoice created successfully and email sent with PDF.', 'success')
             except Exception as email_err:
                 print(f"Email failed (non-fatal): {email_err}")
                 flash('Invoice created successfully. Email could not be sent.', 'warning')
@@ -931,16 +1456,13 @@ def create_invoice():
             flash(f'Unexpected error creating invoice: {str(e)}', 'danger')
             return redirect(url_for('create_invoice'))
 
-    # GET — load dropdowns (convert Rows → dicts so tojson can serialize them)
-    employees = [dict(r) for r in conn.execute(
-        'SELECT username, email FROM users WHERE role = ? ORDER BY username', ('user',)
-    ).fetchall()]
+    # GET — load product dropdown (dicts so tojson can serialize them)
     products = [dict(r) for r in conn.execute(
         'SELECT * FROM products ORDER BY category, name'
     ).fetchall()]
     conn.close()
 
-    return render_template('user/create_invoice.html', employees=employees, products=products)
+    return render_template('user/create_invoice.html', products=products)
 
 
 @app.route('/api/product_price/<int:product_id>')
@@ -991,6 +1513,7 @@ def customer_login():
             flash('Invalid email or password. Please try again.', 'danger')
             return render_template('customer/login.html')
 
+        session.permanent = True
         session['username'] = user['username']
         session['email'] = user['email']
         session['user_id'] = user['id']
@@ -1050,12 +1573,23 @@ def customer_register():
 @require_role('customer')
 def customer_dashboard():
     conn = get_db_connection()
-    
-    # Get invoices where customer name matches the logged-in customer
-    invoices = conn.execute('SELECT * FROM invoices WHERE customer = ? ORDER BY id DESC', (session.get('username'),)).fetchall()
-    totals = conn.execute('SELECT COALESCE(SUM(total), 0) AS revenue FROM invoices WHERE customer = ?', (session.get('username'),)).fetchone()
+    customer_email = session.get('email')
+
+    print(f"DEBUG customer_dashboard: email={customer_email!r}")
+
+    # Match invoices by the email supplied when the employee created the invoice
+    invoices = conn.execute(
+        'SELECT * FROM invoices WHERE customer_email = ? ORDER BY id DESC',
+        (customer_email,)
+    ).fetchall()
+
+    totals = conn.execute(
+        'SELECT COALESCE(SUM(total), 0) AS revenue FROM invoices WHERE customer_email = ?',
+        (customer_email,)
+    ).fetchone()
     total_revenue = totals['revenue'] if totals else 0
-    
+
+    print(f"DEBUG customer_dashboard: found {len(invoices)} invoice(s), total=₹{total_revenue}")
     conn.close()
 
     return render_template('customer/dashboard.html', invoices=invoices, total_revenue=total_revenue)
@@ -1072,12 +1606,23 @@ def view_invoice(invoice_id):
 
     if invoice is None:
         flash('Invoice not found.', 'warning')
-        return redirect(url_for('dashboard'))
+        role = session.get('role')
+        if role == 'admin':
+            return redirect(url_for('admin_dashboard'))
+        elif role == 'user':
+            return redirect(url_for('user_dashboard'))
+        elif role == 'customer':
+            return redirect(url_for('customer_dashboard'))
+        return redirect(url_for('home'))
 
-    # Access control for customers
-    if session.get('role') == 'customer' and invoice['customer'] != session.get('username'):
-        flash('You do not have access to this invoice.', 'danger')
-        return redirect(url_for('customer_dashboard'))
+    # Access control for customers: match by email so name differences don't block access
+    if session.get('role') == 'customer':
+        session_email = (session.get('email') or '').strip().lower()
+        invoice_email = (invoice['customer_email'] or '').strip().lower()
+        print(f"VIEW_INVOICE — SESSION EMAIL: {session_email!r}  |  INVOICE EMAIL: {invoice_email!r}")
+        if session_email != invoice_email:
+            flash('You do not have access to this invoice.', 'danger')
+            return redirect(url_for('customer_dashboard'))
 
     return render_template('invoice.html', invoice=invoice)
 
@@ -1093,69 +1638,44 @@ def download_invoice(invoice_id):
 
     if invoice is None:
         flash('Invoice not found.', 'warning')
-        return redirect(url_for('dashboard'))
+        role = session.get('role')
+        if role == 'admin':
+            return redirect(url_for('admin_dashboard'))
+        elif role == 'user':
+            return redirect(url_for('user_dashboard'))
+        elif role == 'customer':
+            return redirect(url_for('customer_dashboard'))
+        return redirect(url_for('home'))
 
-    # Access control for customers
-    if session.get('role') == 'customer' and invoice['customer'] != session.get('username'):
-        flash('You do not have access to this invoice.', 'danger')
-        return redirect(url_for('customer_dashboard'))
+    # Access control for customers: match by email (not name)
+    if session.get('role') == 'customer':
+        session_email = (session.get('email') or '').strip().lower()
+        invoice_email = (invoice['customer_email'] or '').strip().lower()
+        print(f"DOWNLOAD_INVOICE — SESSION EMAIL: {session_email!r}  |  INVOICE EMAIL: {invoice_email!r}")
+        if session_email != invoice_email:
+            flash('You do not have access to this invoice.', 'danger')
+            return redirect(url_for('customer_dashboard'))
 
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=32, leftMargin=32, topMargin=32, bottomMargin=32)
-    styles = getSampleStyleSheet()
-    elements = []
+    print(f"Downloading invoice: {invoice_id}  |  customer: {invoice['customer']!r}")
+    invoice_dict = dict(invoice)
 
-    title_style = styles['Title']
-    title_style.alignment = 1
-    elements.append(Paragraph('Invoice', title_style))
-    elements.append(Spacer(1, 18))
-
-    header_data = [
-        ['Invoice ID:', str(invoice['id'])],
-        ['Date:', invoice['date']],
-        ['Customer:', invoice['customer']]
-    ]
-    header_table = Table(header_data, colWidths=[100, 340])
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#334155')),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica')
-    ]))
-    elements.append(header_table)
-    elements.append(Spacer(1, 24))
-
-    invoice_table = Table([
-        ['Product / Service', 'Quantity', 'Unit Price', 'Total'],
-        [invoice['product'], str(invoice['quantity']), f"Rs. {invoice['price']:.2f}", f"Rs. {invoice['total']:.2f}"]
-    ], colWidths=[220, 90, 100, 120])
-    invoice_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4f46e5')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d6d6d6')),
-        ('BACKGROUND', (0, 1), (-1, 1), colors.whitesmoke)
-    ]))
-    elements.append(invoice_table)
-    elements.append(Spacer(1, 24))
-
-    summary_data = [['Grand Total', f"Rs. {invoice['total']:.2f}"]]
-    summary_table = Table(summary_data, colWidths=[320, 210])
-    summary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1f2937')),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 12)
-    ]))
-    elements.append(summary_table)
-
-    doc.build(elements)
-    buffer.seek(0)
-
-    return send_file(buffer, mimetype='application/pdf', as_attachment=True, download_name=f"invoice_{invoice['id']}.pdf")
+    try:
+        pdf_bytes = _generate_pdf_bytes(invoice_dict)
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            as_attachment=True,
+            download_name=f"invoice_{invoice_dict['id']}.pdf",
+            mimetype='application/pdf'
+        )
+    except Exception as e:
+        print(f"PDF ERROR for invoice {invoice_id}: {e}")
+        flash(f'Error generating PDF: {e}', 'danger')
+        role = session.get('role')
+        if role == 'customer':
+            return redirect(url_for('customer_dashboard'))
+        elif role == 'user':
+            return redirect(url_for('user_dashboard'))
+        return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/logout')
@@ -1165,19 +1685,7 @@ def logout():
     return redirect(url_for('home'))
 
 
-@app.route('/dashboard')
-def dashboard():
-    if not session.get('username'):
-        return redirect(url_for('home'))
 
-    if session.get('role') == 'admin':
-        return redirect(url_for('admin_dashboard'))
-    elif session.get('role') == 'user':
-        return redirect(url_for('user_dashboard'))
-    elif session.get('role') == 'customer':
-        return redirect(url_for('customer_dashboard'))
-    
-    return redirect(url_for('home'))
 
 
 if __name__ == '__main__':

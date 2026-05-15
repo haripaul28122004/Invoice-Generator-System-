@@ -1,57 +1,113 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="invoice-container">
-    <div class="invoice-header">
-        <h1>Invoice #{{ invoice['id'] }}</h1>
+{% set subtotal = invoice['quantity'] * invoice['price'] %}
+{% set gst_rate = invoice['gst_rate'] if invoice['gst_rate'] else 0.18 %}
+{% set gst_amount = invoice['gst_amount'] if invoice['gst_amount'] else subtotal * gst_rate %}
+{% set grand_total = invoice['total'] %}
+
+<div class="invoice-container" style="max-width:820px;margin:2rem auto;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.10);overflow:hidden;">
+
+    <!-- ── Header ─────────────────────────────────────────── -->
+    <div style="background:#4f46e5;padding:28px 36px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <h1 style="margin:0;color:#fff;font-size:28px;letter-spacing:1px;">INVOICE</h1>
+            <p style="margin:4px 0 0;color:#c7d2fe;font-size:13px;">InvoiceFlow Management System</p>
+        </div>
+        <div style="text-align:right;color:#e0e7ff;font-size:13px;line-height:1.8;">
+            <div><strong style="color:#fff;">Invoice #{{ invoice['id'] }}</strong></div>
+            <div>Date: {{ invoice['date'] }}</div>
+            <div><span style="background:#22c55e;color:#fff;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;">PAID</span></div>
+        </div>
     </div>
 
-    <div class="invoice-details">
-        <div class="invoice-detail-item">
-            <div class="invoice-detail-label">Customer</div>
-            <div class="invoice-detail-value">{{ invoice['customer'] }}</div>
+    <!-- ── Bill To / Payment Info ─────────────────────────── -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:28px 36px;border-bottom:1px solid #e2e8f0;">
+        <div>
+            <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;font-weight:600;">Bill To</p>
+            <p style="margin:0 0 4px;font-size:16px;font-weight:700;color:#1e293b;">{{ invoice['customer'] }}</p>
+            {% if invoice['customer_email'] %}
+            <p style="margin:0 0 4px;font-size:13px;color:#475569;">📧 {{ invoice['customer_email'] }}</p>
+            {% endif %}
+            {% if invoice['customer_address'] %}
+            <p style="margin:0;font-size:13px;color:#475569;white-space:pre-line;">📍 {{ invoice['customer_address'] }}</p>
+            {% endif %}
         </div>
-        <div class="invoice-detail-item">
-            <div class="invoice-detail-label">Date</div>
-            <div class="invoice-detail-value">{{ invoice['date'] }}</div>
-        </div>
-        <div class="invoice-detail-item">
-            <div class="invoice-detail-label">Status</div>
-            <div class="invoice-detail-value"><span class="badge success">Active</span></div>
+        <div style="text-align:right;">
+            <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;font-weight:600;">Payment Details</p>
+            <p style="margin:0 0 4px;font-size:13px;color:#475569;">Created by: <strong>{{ invoice['created_by'] or 'System' }}</strong></p>
+            <p style="margin:0;font-size:13px;color:#475569;">GST Rate: <strong>{{ (gst_rate * 100)|int }}%</strong></p>
         </div>
     </div>
 
-    <div class="invoice-items">
-        <table>
+    <!-- ── Line Items Table ───────────────────────────────── -->
+    <div style="padding:28px 36px 0;">
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
             <thead>
-                <tr>
-                    <th>Product / Service</th>
-                    <th>Quantity</th>
-                    <th>Unit Price</th>
-                    <th>Total</th>
+                <tr style="background:#4f46e5;color:#fff;">
+                    <th style="padding:12px 14px;text-align:left;border-radius:6px 0 0 0;">#</th>
+                    <th style="padding:12px 14px;text-align:left;">Product / Service</th>
+                    <th style="padding:12px 14px;text-align:right;">Qty</th>
+                    <th style="padding:12px 14px;text-align:right;">Unit Price</th>
+                    <th style="padding:12px 14px;text-align:right;border-radius:0 6px 0 0;">Amount</th>
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>{{ invoice['product'] }}</td>
-                    <td>{{ invoice['quantity'] }}</td>
-                    <td>Rs. {{ "%.2f"|format(invoice['price']) }}</td>
-                    <td>Rs. {{ "%.2f"|format(invoice['total']) }}</td>
+                <tr style="background:#f8fafc;">
+                    <td style="padding:14px;color:#64748b;">1</td>
+                    <td style="padding:14px;font-weight:600;color:#1e293b;">{{ invoice['product'] }}</td>
+                    <td style="padding:14px;text-align:right;color:#475569;">{{ invoice['quantity'] }}</td>
+                    <td style="padding:14px;text-align:right;color:#475569;">₹{{ "%.2f"|format(invoice['price']) }}</td>
+                    <td style="padding:14px;text-align:right;font-weight:600;color:#1e293b;">₹{{ "%.2f"|format(subtotal) }}</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
-    <div class="invoice-total">
-        <div class="invoice-total-item">
-            <div class="invoice-total-label">Grand Total</div>
-            <div class="invoice-total-value">Rs. {{ "%.2f"|format(invoice['total']) }}</div>
+    <!-- ── Totals ─────────────────────────────────────────── -->
+    <div style="padding:0 36px 28px;">
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <!-- spacer row keeps the label column width matching the items table -->
+            <colgroup>
+                <col style="width:70%;">
+                <col style="width:30%;">
+            </colgroup>
+            <tr>
+                <td></td>
+                <td style="padding:10px 14px 4px;display:flex;justify-content:space-between;color:#64748b;border-top:1px solid #e2e8f0;">
+                    <span>Subtotal</span>
+                    <span style="color:#475569;font-weight:500;">₹{{ "%.2f"|format(subtotal) }}</span>
+                </td>
+            </tr>
+            <tr>
+                <td></td>
+                <td style="padding:4px 14px;display:flex;justify-content:space-between;color:#64748b;">
+                    <span>GST ({{ (gst_rate * 100)|int }}%)</span>
+                    <span style="color:#475569;font-weight:500;">₹{{ "%.2f"|format(gst_amount) }}</span>
+                </td>
+            </tr>
+            <tr>
+                <td></td>
+                <td style="padding:0 14px 0;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;
+                                background:#4f46e5;color:#fff;font-weight:700;font-size:15px;
+                                padding:12px 14px;border-radius:6px;margin-top:8px;">
+                        <span>Grand Total</span>
+                        <span>₹{{ "%.2f"|format(grand_total) }}</span>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- ── Footer ─────────────────────────────────────────── -->
+    <div style="background:#f8fafc;padding:18px 36px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+        <p style="margin:0;font-size:12px;color:#94a3b8;">Thank you for your business — <strong style="color:#4f46e5;">InvoiceFlow Team</strong></p>
+        <div style="display:flex;gap:10px;">
+            <a href="{{ url_for('download_invoice', invoice_id=invoice['id']) }}" class="button">⬇ Download PDF</a>
+            <a href="javascript:history.back()" class="button secondary">Back</a>
         </div>
     </div>
 
-    <div class="invoice-actions">
-        <a href="{{ url_for('download_invoice', invoice_id=invoice['id']) }}" class="button">Download PDF</a>
-        <a href="javascript:history.back()" class="button secondary">Back</a>
-    </div>
 </div>
 {% endblock %}
