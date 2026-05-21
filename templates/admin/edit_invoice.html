@@ -1,0 +1,11 @@
+<h2>Edit Invoice</h2>
+
+<form method="POST">
+    <label>Customer</label>
+    <input type="text" name="customer" value="{{ invoice.customer }}" required>
+
+    <label>Quantity</label>
+    <input type="number" name="quantity" value="{{ invoice.quantity }}" required>
+
+    <button type="submit">Update</button>
+</form>

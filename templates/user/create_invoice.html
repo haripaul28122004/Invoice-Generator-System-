@@ -1,248 +1,513 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+    /* ── Responsive container ── */
+    .form-container {
+        max-width: 1000px;
+        width: 95%;
+        margin: auto;
+        padding: 20px;
+        overflow: hidden;
+    }
+
+    /* ── Table scroll wrapper ── */
+    #tableWrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        /* smooth on iOS */
+        border-radius: 8px;
+    }
+
+    /* ── Product table ── */
+    #productTable {
+        width: 100%;
+        min-width: 660px;
+        /* enough room for all 6 columns */
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    /* Column widths — must total 100% */
+    #productTable col:nth-child(1) {
+        width: 18%;
+    }
+
+    /* Category   */
+    #productTable col:nth-child(2) {
+        width: 28%;
+    }
+
+    /* Product    */
+    #productTable col:nth-child(3) {
+        width: 9%;
+    }
+
+    /* Qty        */
+    #productTable col:nth-child(4) {
+        width: 18%;
+    }
+
+    /* Unit Price */
+    #productTable col:nth-child(5) {
+        width: 20%;
+    }
+
+    /* Line Total */
+    #productTable col:nth-child(6) {
+        width: 7%;
+    }
+
+    /* Remove     */
+
+    #productTable th {
+        padding: 10px 10px;
+        overflow: hidden;
+        white-space: nowrap;
+        /* header text stays on one line */
+        text-align: left;
+    }
+
+    #productTable td {
+        padding: 8px 8px;
+        overflow: hidden;
+        vertical-align: middle;
+        /* inputs centred in cell */
+        text-align: left;
+    }
+
+    /* Gradient header */
+    #productTable thead tr {
+        background: linear-gradient(to right, #4f46e5, #6366f1);
+        color: #fff;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .6px;
+    }
+
+    #productTable thead th {
+        font-weight: 700;
+    }
+
+    #productTable thead th:first-child {
+        border-radius: 8px 0 0 0;
+    }
+
+    #productTable thead th:last-child {
+        border-radius: 0 8px 0 0;
+    }
+
+    /* Body rows */
+    #productTable tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        background: #fff;
+        transition: background .15s;
+    }
+
+    #productTable tbody tr:nth-child(even) {
+        background: #fafafa;
+    }
+
+    #productTable tbody tr:hover {
+        background: #f0f4ff;
+    }
+
+    /* Inputs */
+    #productTable input,
+    #productTable select {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 6px 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 13px;
+        font-family: inherit;
+        background: #fff;
+    }
+
+    #productTable input[readonly] {
+        background: #f8fafc;
+        color: #64748b;
+        cursor: default;
+    }
+
+    #productTable td.lt-cell {
+        text-align: right;
+        font-weight: 600;
+        color: #4f46e5;
+    }
+
+    #productTable td.remove-cell {
+        text-align: center;
+    }
+
+    /* Buttons */
+    .remove-btn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: #fee2e2;
+        color: #ef4444;
+        border-radius: 6px;
+        font-size: 17px;
+        cursor: pointer;
+        line-height: 1;
+    }
+
+    #addRowBtn {
+        margin-top: 10px;
+        width: 100%;
+        padding: 9px;
+        background: transparent;
+        border: 2px dashed #4f46e5;
+        color: #4f46e5;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background .2s;
+    }
+
+    #addRowBtn:hover {
+        background: #ede9fe;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+        .form-container {
+            width: 100%;
+            padding: 10px;
+        }
+
+        h2 {
+            font-size: 20px;
+        }
+
+        #productTable input,
+        #productTable select {
+            font-size: 12px;
+            padding: 5px 6px;
+        }
+
+        .form-actions .button {
+            width: 100%;
+            max-width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="form-container">
     <h2>Create New Invoice</h2>
-    <form method="POST">
-        <!-- Customer Details -->
+    <form method="POST" id="invoiceForm">
+
+        <!-- ── Customer Details ──────────────────────────────── -->
         <div class="form-row two-col">
             <div class="form-group">
                 <label for="customer">Customer Name *</label>
-                <input type="text" id="customer" name="customer"
-                       placeholder="Enter customer name" required>
+                <input type="text" id="customer" name="customer" placeholder="Enter customer name" required>
             </div>
             <div class="form-group">
                 <label for="customer_email">Customer Email *</label>
-                <input type="email" id="customer_email" name="customer_email"
-                       placeholder="Enter customer email" required>
+                <input type="email" id="customer_email" name="customer_email" placeholder="Enter customer email"
+                    required>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="customer_address">Customer Address *</label>
-                <textarea id="customer_address" name="customer_address"
-                          placeholder="Enter customer address" rows="2" required
-                          style="resize:vertical;width:100%;"></textarea>
+                <textarea id="customer_address" name="customer_address" placeholder="Enter full address" rows="2"
+                    required style="resize:vertical;width:100%;padding:10px;
+                                 border:1px solid #e2e8f0;border-radius:8px;
+                                 font-size:14px;font-family:inherit;"></textarea>
             </div>
         </div>
 
-        <!-- Category Filter -->
+        <!-- ── Product Table ──────────────────────────────────── -->
         <div class="form-row">
             <div class="form-group">
-                <label for="categoryFilter">Filter by Category</label>
-                <select id="categoryFilter">
-                    <option value="">All Categories</option>
-                    {% set categories = [] %}
-                    {% for product in products %}
-                        {% if product['category'] not in categories %}
-                            {% set _ = categories.append(product['category']) %}
-                            <option value="{{ product['category'] }}">{{ product['category'] }}</option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
+                <label>Products *</label>
+                <div id="tableWrapper" style="width:100%;overflow-x:auto;">
+                    <table id="productTable">
+                        <colgroup>
+                            <col style="width:18%;"> <!-- Category   -->
+                            <col style="width:28%;"> <!-- Product    -->
+                            <col style="width:9%;"> <!-- Qty        -->
+                            <col style="width:18%;"> <!-- Unit Price -->
+                            <col style="width:20%;"> <!-- Line Total -->
+                            <col style="width:7%;"> <!-- Remove     -->
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Category</th>
+                                <th style="text-align:left;">Product</th>
+                                <th style="text-align:center;">Qty</th>
+                                <th style="text-align:right;">Unit Price</th>
+                                <th style="text-align:right;">Line Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="productRows">
+                            <!-- rows injected by JS -->
+                        </tbody>
+                    </table>
+                </div><!-- /tableWrapper -->
+
+                <button type="button" id="addRowBtn">+ Add Another Product</button>
             </div>
         </div>
 
-        <!-- Search Product -->
-        <div class="form-row">
-            <div class="form-group">
-                <label for="searchProduct">Search Product</label>
-                <input type="text" id="searchProduct" placeholder="Search by name, category, or price...">
-            </div>
-        </div>
+        <!-- ── Totals (3-col table, no flex) ──────────────────── -->
+        <table id="taxSummary" style="display:none;width:100%;margin-top:20px;
+                      border-collapse:collapse;table-layout:fixed;">
+            <colgroup>
+                <col style="width:60%;">
+                <col style="width:20%;">
+                <col style="width:20%;">
+            </colgroup>
+            <tr style="border-top:2px solid #ccc;">
+                <td></td>
+                <td style="text-align:right;padding:10px 10px 6px 0;color:#64748b;">
+                    Subtotal
+                </td>
+                <td style="text-align:right;padding:10px 0 6px;
+                           color:#475569;font-weight:600;">
+                    ₹<span id="subtotalVal">0.00</span>
+                </td>
+            </tr>
+            <tr>
+                <td></td>
+                <td style="text-align:right;padding:4px 10px 4px 0;color:#64748b;">
+                    GST (18%)
+                </td>
+                <td style="text-align:right;padding:4px 0;
+                           color:#475569;font-weight:600;">
+                    ₹<span id="gstVal">0.00</span>
+                </td>
+            </tr>
+            <tr>
+                <td></td>
+                <td style="text-align:right;font-weight:bold;
+                           padding:10px 10px 10px 0;color:#1e293b;">
+                    Grand Total
+                </td>
+                <td style="text-align:right;font-weight:bold;font-size:15px;
+                           background:#4f46e5;color:white;
+                           padding:10px;border-radius:8px;">
+                    ₹<span id="totalVal">0.00</span>
+                </td>
+            </tr>
+        </table>
 
-        <!-- Product Selection -->
-        <div class="form-row">
-            <div class="form-group">
-                <label for="product_id">Select Product *</label>
-                <select id="product_id" name="product_id" required>
-                    <option value="">Select a product...</option>
-                    {% for product in products %}
-                    <option value="{{ product['id'] }}"
-                        data-name="{{ product['name'] }}"
-                        data-category="{{ product['category'] }}"
-                        data-price="{{ product['price'] }}"
-                        data-gst="{{ product['gst'] or 0.18 }}"
-                        data-stock="{{ product['stock'] or 0 }}"
-                        {% if (product['stock'] or 0) == 0 %}disabled{% endif %}>
-                        {{ product['name'] }} ({{ product['category'] }}) - ₹{{ "%.2f"|format(product['price']) }} | Stock: {{ product['stock'] or 0 }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-
-        <!-- Stock Info Display -->
-        <div class="form-row">
-            <div class="form-group" id="stockInfoContainer" style="display:none;">
-                <label for="stockInfo">Available Stock</label>
-                <input type="text" id="stockInfo" readonly placeholder="Select a product" style="background: #f3f4f6;">
-            </div>
-        </div>
-
-        <div class="form-row two-col">
-            <div class="form-group">
-                <label for="quantity">Quantity *</label>
-                <input type="number" id="quantity" name="quantity" min="1" placeholder="0" required oninput="calculateTax()">
-            </div>
-            <div class="form-group">
-                <label for="price">Unit Price (₹)</label>
-                <input type="text" id="price" name="price" readonly placeholder="0.00" style="background: #f3f4f6;">
-            </div>
-        </div>
-
-        <!-- Real-time Tax Calculator Display -->
-        <div class="tax-summary" id="taxSummary" style="display: none;">
-            <div class="tax-row header">
-                <span>SUBTOTAL</span>
-                <span>₹ <span id="subtotalValue">0.00</span></span>
-            </div>
-            <div class="tax-row">
-                <span>GST (<span id="gstRate">18</span>%)</span>
-                <span>₹ <span id="taxValue">0.00</span></span>
-            </div>
-            <div class="tax-row total">
-                <span>FINAL TOTAL</span>
-                <span>₹ <span id="finalTotalValue">0.00</span></span>
-            </div>
-        </div>
-
-        <!-- Stock Warning -->
-        <div id="stockWarning" class="flash danger" style="display: none; margin-top: 1rem;">
-            ⚠️ Quantity exceeds available stock!
-        </div>
-
-        <div class="form-actions">
+        <div class="form-actions" style="margin-top:20px;">
             <button type="submit" class="button">Create Invoice</button>
             <a href="{{ url_for('user_dashboard') }}" class="button secondary">Cancel</a>
         </div>
     </form>
 </div>
 
+<!-- Product data injected by Flask (separate tag keeps JS linter happy) -->
+<script id="productData" type="application/json">
+{{ products | tojson | safe }}
+</script>
+
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+    const PRODUCTS = JSON.parse(document.getElementById('productData').textContent);
 
-    // ── Data ──────────────────────────────────────────────────────
-    const productsData = JSON.parse('{{ products | tojson | safe }}');
-    console.log("Products loaded:", productsData.length);
+    // Build category map from real DB data
+    const CAT_MAP = {};
+    PRODUCTS.forEach(p => {
+        const cat = p.category || 'General';
+        if (!CAT_MAP[cat]) CAT_MAP[cat] = [];
+        CAT_MAP[cat].push(p);
+    });
+    const CATEGORIES = Object.keys(CAT_MAP).sort();
 
-    // ── DOM refs ──────────────────────────────────────────────────
-    const productSelect      = document.getElementById('product_id');
-    const quantityInput      = document.getElementById('quantity');
-    const priceInput         = document.getElementById('price');
-    const taxSummary         = document.getElementById('taxSummary');
-    const searchInput        = document.getElementById('searchProduct');
-    const categoryFilter     = document.getElementById('categoryFilter');
-    const stockInfoContainer = document.getElementById('stockInfoContainer');
-    const stockInfo          = document.getElementById('stockInfo');
-    const stockWarning       = document.getElementById('stockWarning');
+    function buildCatOptions() {
+        let h = '<option value="">— Category —</option>';
+        CATEGORIES.forEach(c => { h += `<option value="${c}">${c}</option>`; });
+        return h;
+    }
 
-    if (!productSelect) return; // safety guard
+    function buildProdOptions(cat) {
+        let h = '<option value="">— Product —</option>';
+        if (cat && CAT_MAP[cat]) {
+            CAT_MAP[cat].forEach(p => {
+                const dis = (p.stock || 0) <= 0 ? 'disabled' : '';
+                h += `<option value="${p.id}" data-price="${p.price}" ${dis}>
+                    ${p.name} — ₹${parseFloat(p.price).toFixed(2)} (Stock: ${p.stock || 0})
+                  </option>`;
+            });
+        }
+        return h;
+    }
 
-    let currentGST   = 0.18;
-    let currentStock = 0;
+    function recalcAll() {
+        let sub = 0;
+        document.querySelectorAll('#productRows tr.product-row').forEach(row => {
+            const qty = parseInt(row.querySelector('.qty-input').value) || 0;
+            const price = parseFloat(row.querySelector('.price-disp').value) || 0;
+            const lt = qty * price;
+            row.querySelector('.lt-disp').textContent = lt > 0 ? lt.toFixed(2) : '0.00';
+            sub += lt;
+        });
+        const gst = sub * 0.18;
+        const grand = sub + gst;
+        document.getElementById('subtotalVal').textContent = sub.toFixed(2);
+        document.getElementById('gstVal').textContent = gst.toFixed(2);
+        document.getElementById('totalVal').textContent = grand.toFixed(2);
+        document.getElementById('taxSummary').style.display = sub > 0 ? '' : 'none';
+    }
 
-    // ── Rebuild product dropdown from filtered array ───────────────
-    function updateProductDropdown(filtered) {
-        const prev = productSelect.value; // keep selection if still valid
-        productSelect.innerHTML = '<option value="">Select a product...</option>';
+    function updateRemoveBtns() {
+        const btns = document.querySelectorAll('#productRows .remove-btn');
+        btns.forEach(b => { b.style.visibility = btns.length === 1 ? 'hidden' : 'visible'; });
+    }
 
-        filtered.forEach(function (p) {
-            const opt = document.createElement('option');
-            opt.value            = p.id;
-            opt.dataset.name     = p.name;
-            opt.dataset.category = p.category;
-            opt.dataset.price    = p.price;
-            opt.dataset.gst      = p.gst || 0.18;
-            opt.dataset.stock    = p.stock || 0;
-            opt.disabled         = (p.stock || 0) === 0;
-            opt.textContent      = p.name + ' (' + p.category + ') - ₹' +
-                                   parseFloat(p.price).toFixed(2) +
-                                   ' | Stock: ' + (p.stock || 0);
-            if (String(p.id) === prev) opt.selected = true;
-            productSelect.appendChild(opt);
+    // ── AI Price fetch ────────────────────────────────────────────────────
+    async function fetchAIPrice(productId, quantity, priceInput, row) {
+        if (!productId || !quantity) return;
+        try {
+            const res = await fetch('/api/predict_price', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, quantity })
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            priceInput.value = data.predicted.toFixed(2);
+
+            // Show discount badge next to price field
+            clearAiBadge(row);
+            if (data.discount_pct > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'ai-badge';
+                badge.textContent = `AI ✦ -${data.discount_pct}%`;
+                badge.style.cssText =
+                    'display:block;font-size:10px;color:#7c3aed;font-weight:700;' +
+                    'margin-top:2px;letter-spacing:.3px;';
+                priceInput.parentNode.appendChild(badge);
+            }
+
+            recalcAll();   // update totals with new AI price
+        } catch (_) { /* network error — keep existing price */ }
+    }
+
+    function clearAiBadge(row) {
+        row.querySelectorAll('.ai-badge').forEach(b => b.remove());
+    }
+
+
+    function addRow() {
+        const tr = document.createElement('tr');
+        tr.className = 'product-row';
+        tr.innerHTML = `
+        <td>
+            <input type="hidden" name="product_id[]" class="prod-id-hidden" value="">
+            <select class="cat-select" style="width:100%;box-sizing:border-box;
+                    padding:7px 9px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
+                ${buildCatOptions()}
+            </select>
+        </td>
+        <td>
+            <select class="prod-select" required
+                    style="width:100%;box-sizing:border-box;
+                           padding:7px 9px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
+                <option value="">— Product —</option>
+            </select>
+        </td>
+        <td>
+            <input name="quantity[]" type="number" min="1" value="1"
+                   class="qty-input" required
+                   style="width:100%;box-sizing:border-box;padding:7px 9px;
+                          border:1px solid #e2e8f0;border-radius:6px;
+                          font-size:13px;text-align:center;">
+        </td>
+        <td>
+            <input type="text" readonly placeholder="0.00" class="price-disp"
+                   style="width:100%;box-sizing:border-box;padding:7px 9px;
+                          border:1px solid #e2e8f0;border-radius:6px;font-size:13px;
+                          text-align:right;background:#f8fafc;color:#64748b;">
+        </td>
+        <td class="lt-cell">₹<span class="lt-disp">0.00</span></td>
+        <td class="remove-cell">
+            <button type="button" class="remove-btn" style="visibility:hidden;">×</button>
+        </td>`;
+
+        document.getElementById('productRows').appendChild(tr);
+
+        const catSel = tr.querySelector('.cat-select');
+        const prodSel = tr.querySelector('.prod-select');
+        const hiddenId = tr.querySelector('.prod-id-hidden');
+        const qtyIn = tr.querySelector('.qty-input');
+        const priceIn = tr.querySelector('.price-disp');
+        const removeBtn = tr.querySelector('.remove-btn');
+
+        catSel.addEventListener('change', () => {
+            prodSel.innerHTML = buildProdOptions(catSel.value);
+            priceIn.value = '';
+            hiddenId.value = '';
+            clearAiBadge(tr);
+            recalcAll();
         });
 
-        // Reset price/GST if selected product is no longer in list
-        if (!productSelect.value) {
-            priceInput.value = '';
-            taxSummary.style.display = 'none';
-            stockInfoContainer.style.display = 'none';
-            currentGST = 0.18;
-            currentStock = 0;
-        }
-    }
-
-    // ── Apply both search + category filters ──────────────────────
-    function applyFilters() {
-        const searchVal  = searchInput.value.trim().toLowerCase();
-        const catVal     = categoryFilter.value.toLowerCase();
-
-        const filtered = productsData.filter(function (p) {
-            const matchesCat    = catVal === '' || p.category.toLowerCase() === catVal;
-            const matchesSearch = searchVal === '' ||
-                                  p.name.toLowerCase().includes(searchVal) ||
-                                  p.category.toLowerCase().includes(searchVal);
-            return matchesCat && matchesSearch;
+        prodSel.addEventListener('change', () => {
+            const opt = prodSel.options[prodSel.selectedIndex];
+            if (opt && opt.value) {
+                hiddenId.value = opt.value;
+                // Set base price immediately, then refine with AI
+                priceIn.value = opt.dataset.price
+                    ? parseFloat(opt.dataset.price).toFixed(2) : '';
+                recalcAll();
+                fetchAIPrice(opt.value, parseInt(qtyIn.value) || 1, priceIn, tr);
+            } else {
+                hiddenId.value = '';
+                priceIn.value = '';
+                clearAiBadge(tr);
+                recalcAll();
+            }
         });
 
-        updateProductDropdown(filtered);
+        // Debounced AI call on quantity change
+        let _qtyTimer = null;
+        qtyIn.addEventListener('input', () => {
+            recalcAll();   // instant visual feedback with current price
+            clearTimeout(_qtyTimer);
+            if (!hiddenId.value) return;
+            _qtyTimer = setTimeout(() => {
+                fetchAIPrice(hiddenId.value, parseInt(qtyIn.value) || 1, priceIn, tr);
+            }, 400);       // wait 400 ms after user stops typing
+        });
+
+        removeBtn.addEventListener('click', () => {
+            tr.remove();
+            updateRemoveBtns();
+            recalcAll();
+        });
+
+        updateRemoveBtns();
     }
 
-    // ── Update price + GST when product selected ──────────────────
-    function updatePriceAndGST() {
-        const selected = productSelect.options[productSelect.selectedIndex];
-        if (selected && selected.value) {
-            const price  = parseFloat(selected.dataset.price) || 0;
-            currentGST   = parseFloat(selected.dataset.gst)   || 0.18;
-            currentStock = parseInt(selected.dataset.stock)    || 0;
-
-            priceInput.value = price.toFixed(2);
-            stockInfo.value  = currentStock + ' units';
-            stockInfoContainer.style.display = 'block';
-
-            console.log('Product:', selected.textContent.trim(),
-                        '| Price:', price, '| GST:', currentGST, '| Stock:', currentStock);
-
-            calculateTax();
-        } else {
-            priceInput.value = '';
-            stockInfoContainer.style.display = 'none';
-            taxSummary.style.display = 'none';
+    // Validate all rows have a product selected
+    document.getElementById('invoiceForm').addEventListener('submit', e => {
+        const ids = document.querySelectorAll('.prod-id-hidden');
+        if ([...ids].some(h => !h.value)) {
+            e.preventDefault();
+            alert('Please select a product for every row.');
         }
-    }
+    });
 
-    // ── Real-time tax calculator ───────────────────────────────────
-    function calculateTax() {
-        const quantity = parseInt(quantityInput.value) || 0;
-        const price    = parseFloat(priceInput.value)  || 0;
-
-        stockWarning.style.display =
-            (quantity > currentStock && currentStock > 0) ? 'block' : 'none';
-
-        if (quantity <= 0 || price <= 0) {
-            taxSummary.style.display = 'none';
-            return;
+    document.getElementById('addRowBtn').addEventListener('click', addRow);
+    
+    document.addEventListener("DOMContentLoaded", () => {
+        console.log("DOM loaded. Initializing first row...");
+        if (document.querySelectorAll('#productRows tr').length === 0) {
+            addRow();
         }
-
-        const subtotal   = quantity * price;
-        const tax        = subtotal * currentGST;
-        const finalTotal = subtotal + tax;
-
-        document.getElementById('subtotalValue').textContent   = subtotal.toFixed(2);
-        document.getElementById('taxValue').textContent        = tax.toFixed(2);
-        document.getElementById('gstRate').textContent         = (currentGST * 100).toFixed(0);
-        document.getElementById('finalTotalValue').textContent = finalTotal.toFixed(2);
-
-        taxSummary.style.display = 'block';
-    }
-
-    // ── Event listeners ───────────────────────────────────────────
-    productSelect.addEventListener('change',  updatePriceAndGST);
-    quantityInput.addEventListener('input',   calculateTax);
-    searchInput.addEventListener('input',     applyFilters);
-    categoryFilter.addEventListener('change', applyFilters);
-
-}); // end DOMContentLoaded
+    });
 </script>
 {% endblock %}

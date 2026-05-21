@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+  .inv-row-odd  { background: #f8fafc; }
+  .inv-row-even { background: #ffffff; }
+</style>
+{% endblock %}
+
 {% block content %}
-{% set subtotal = invoice['quantity'] * invoice['price'] %}
+{# ── Compute totals from invoice_items (multi-product) ── #}
+{% set subtotal = items | sum(attribute='line_total') if items else (invoice['quantity'] * invoice['price']) %}
 {% set gst_rate = invoice['gst_rate'] if invoice['gst_rate'] else 0.18 %}
 {% set gst_amount = invoice['gst_amount'] if invoice['gst_amount'] else subtotal * gst_rate %}
 {% set grand_total = invoice['total'] %}
@@ -53,52 +61,74 @@
                 </tr>
             </thead>
             <tbody>
-                <tr style="background:#f8fafc;">
-                    <td style="padding:14px;color:#64748b;">1</td>
-                    <td style="padding:14px;font-weight:600;color:#1e293b;">{{ invoice['product'] }}</td>
-                    <td style="padding:14px;text-align:right;color:#475569;">{{ invoice['quantity'] }}</td>
-                    <td style="padding:14px;text-align:right;color:#475569;">₹{{ "%.2f"|format(invoice['price']) }}</td>
-                    <td style="padding:14px;text-align:right;font-weight:600;color:#1e293b;">₹{{ "%.2f"|format(subtotal) }}</td>
-                </tr>
+                {% if items %}
+                    {% for item in items %}
+                    <tr class="{% if loop.index is odd %}inv-row-odd{% else %}inv-row-even{% endif %}">
+                        <td style="padding:14px;color:#64748b;">{{ loop.index }}</td>
+                        <td style="padding:14px;font-weight:600;color:#1e293b;">{{ item['product'] }}</td>
+                        <td style="padding:14px;text-align:right;color:#475569;">{{ item['quantity'] }}</td>
+                        <td style="padding:14px;text-align:right;color:#475569;">₹{{ "%.2f"|format(item['price']) }}</td>
+                        <td style="padding:14px;text-align:right;font-weight:600;color:#1e293b;">₹{{ "%.2f"|format(item['line_total']) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    {# Backward-compat fallback for old invoices without items rows #}
+                    <tr style="background:#f8fafc;">
+                        <td style="padding:14px;color:#64748b;">1</td>
+                        <td style="padding:14px;font-weight:600;color:#1e293b;">{{ invoice['product'] }}</td>
+                        <td style="padding:14px;text-align:right;color:#475569;">{{ invoice['quantity'] }}</td>
+                        <td style="padding:14px;text-align:right;color:#475569;">₹{{ "%.2f"|format(invoice['price']) }}</td>
+                        <td style="padding:14px;text-align:right;font-weight:600;color:#1e293b;">₹{{ "%.2f"|format(subtotal) }}</td>
+                    </tr>
+                {% endif %}
             </tbody>
         </table>
     </div>
 
     <!-- ── Totals ─────────────────────────────────────────── -->
     <div style="padding:0 36px 28px;">
-        <table style="width:100%;border-collapse:collapse;font-size:14px;">
-            <!-- spacer row keeps the label column width matching the items table -->
-            <colgroup>
-                <col style="width:70%;">
-                <col style="width:30%;">
-            </colgroup>
-            <tr>
-                <td></td>
-                <td style="padding:10px 14px 4px;display:flex;justify-content:space-between;color:#64748b;border-top:1px solid #e2e8f0;">
-                    <span>Subtotal</span>
-                    <span style="color:#475569;font-weight:500;">₹{{ "%.2f"|format(subtotal) }}</span>
+        <table style="width:100%; margin-top:20px; border-collapse:collapse;">
+            <tr style="border-top:2px solid #ccc;">
+                <td style="width:10%;"></td>
+                <td style="width:40%;"></td>
+                <td style="width:15%;"></td>
+                <td style="width:15%; text-align:right; padding-right:10px; color:#64748b; padding-top:10px;">
+                    Subtotal
+                </td>
+                <td style="width:20%; text-align:right; color:#475569; font-weight:500; padding-top:10px; padding-right:14px;">
+                    ₹{{ "%.2f"|format(subtotal) }}
                 </td>
             </tr>
             <tr>
                 <td></td>
-                <td style="padding:4px 14px;display:flex;justify-content:space-between;color:#64748b;">
-                    <span>GST ({{ (gst_rate * 100)|int }}%)</span>
-                    <span style="color:#475569;font-weight:500;">₹{{ "%.2f"|format(gst_amount) }}</span>
+                <td></td>
+                <td></td>
+                <td style="text-align:right; padding-right:10px; color:#64748b; padding-top:4px; padding-bottom:4px;">
+                    GST ({{ (gst_rate * 100)|int }}%)
+                </td>
+                <td style="text-align:right; color:#475569; font-weight:500; padding-right:14px;">
+                    ₹{{ "%.2f"|format(gst_amount) }}
                 </td>
             </tr>
             <tr>
                 <td></td>
-                <td style="padding:0 14px 0;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;
-                                background:#4f46e5;color:#fff;font-weight:700;font-size:15px;
-                                padding:12px 14px;border-radius:6px;margin-top:8px;">
-                        <span>Grand Total</span>
-                        <span>₹{{ "%.2f"|format(grand_total) }}</span>
-                    </div>
+                <td></td>
+                <td></td>
+                <td style="text-align:right; font-weight:bold; padding-right:10px; color:#1e293b; padding-top:8px;">
+                    Grand Total
+                </td>
+                <td style="text-align:right; font-weight:bold;
+                           background:#4f46e5; color:white;
+                           padding:10px; border-radius:8px;">
+                    ₹{{ "%.2f"|format(grand_total) }}
                 </td>
             </tr>
         </table>
     </div>
+
+
+
+
 
     <!-- ── Footer ─────────────────────────────────────────── -->
     <div style="background:#f8fafc;padding:18px 36px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">

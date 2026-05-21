@@ -1,5 +1,5 @@
-﻿/* ============================================
-   MILD THEME - SOFT COLOR PALETTE
+/* ============================================
+   SAAS UPGRADE — Inter font + base reset
    ============================================ */
 
 :root {
@@ -16,83 +16,84 @@
     --success-color: #10b981;
     --danger-color: #ef4444;
     --warning-color: #f59e0b;
-    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    --card-shadow-hover: 0 4px 6px rgba(0, 0, 0, 0.07);
+    --card-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    --card-shadow-hover: 0 8px 24px rgba(79,70,229,.12);
+    --radius: 12px;
 }
 
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-html {
-    scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
 body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background-color: var(--bg-primary);
     color: var(--text-primary);
     min-height: 100vh;
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
 }
 
 /* ============================================
-   HEADER & NAVIGATION
+   HEADER & NAVIGATION — SaaS upgrade
    ============================================ */
 
 header.topbar {
-    background-color: var(--bg-secondary);
+    background: #ffffff;
     border-bottom: 1px solid var(--border-color);
-    padding: 1rem 2rem;
+    padding: 0 2rem;
+    height: 60px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: var(--card-shadow);
+    box-shadow: 0 1px 0 rgba(0,0,0,.06);
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 200;
 }
 
 .brand {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--primary-color);
     letter-spacing: -0.5px;
+    white-space: nowrap;
 }
 
 header nav {
     display: flex;
-    gap: 2rem;
+    gap: 0.25rem;
     align-items: center;
 }
 
 header nav a {
     text-decoration: none;
-    color: var(--text-primary);
+    color: var(--text-secondary);
     font-weight: 500;
-    font-size: 0.95rem;
-    transition: color 0.2s ease;
-    position: relative;
+    font-size: 0.9rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
 }
 
 header nav a:hover {
+    background: #f1f5f9;
     color: var(--primary-color);
 }
 
-header nav a::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background-color: var(--primary-color);
-    transition: width 0.3s ease;
+/* Logout / CTA button in nav */
+header nav a.button.mini {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: #fff;
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
 }
-
-header nav a:hover::after {
-    width: 100%;
+header nav a.button.mini:hover {
+    opacity: 0.9;
+    transform: none;
+    box-shadow: 0 4px 12px rgba(79,70,229,.3);
 }
 
 /* ============================================
@@ -107,8 +108,8 @@ main.login-main {
 main.page-shell {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 2rem;
-    min-height: calc(100vh - 70px);
+    padding: 2rem 2rem 100px 2rem;   /* bottom pad clears the chat widget */
+    min-height: calc(100vh - 60px);
 }
 
 /* ============================================
@@ -279,72 +280,72 @@ main.page-shell {
 }
 
 /* ============================================
-   BUTTONS
+   BUTTONS — SaaS upgrade
    ============================================ */
 
 .button, button, input[type="submit"] {
-    padding: 0.75rem 1.5rem;
+    padding: 0.65rem 1.4rem;
     border: none;
     border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: 0.95rem;
+    font-family: inherit;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.18s ease;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    white-space: nowrap;
 }
 
 .button, input[type="submit"] {
-    background-color: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     color: white;
+    box-shadow: 0 2px 8px rgba(79,70,229,.25);
 }
 
 .button:hover, input[type="submit"]:hover {
-    background-color: var(--primary-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(79,70,229,.35);
 }
 
 .button.secondary {
-    background-color: var(--bg-primary);
+    background: var(--bg-secondary);
     color: var(--primary-color);
-    border: 1px solid var(--border-color);
+    border: 1.5px solid var(--border-color);
+    box-shadow: none;
 }
 
 .button.secondary:hover {
-    background-color: var(--border-light);
     border-color: var(--primary-color);
+    background: #f1f5f9;
+    transform: translateY(-1px);
 }
 
 .button.danger {
-    background-color: var(--danger-color);
+    background: linear-gradient(135deg, #ef4444, #dc2626);
     color: white;
+    box-shadow: 0 2px 8px rgba(239,68,68,.25);
 }
 
-.button.danger:hover {
-    background-color: #dc2626;
-}
+.button.danger:hover { opacity: 0.9; transform: translateY(-1px); }
 
 .button.success {
-    background-color: var(--success-color);
+    background: linear-gradient(135deg, #10b981, #059669);
     color: white;
 }
 
-.button.success:hover {
-    background-color: #059669;
-}
+.button.success:hover { opacity: 0.9; transform: translateY(-1px); }
 
 .button.mini {
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
 }
 
-.button.full-width {
-    width: 100%;
-}
+.button.full-width { width: 100%; }
 
 /* ============================================
    ALERTS / FLASH MESSAGES
@@ -399,58 +400,73 @@ main.page-shell {
 }
 
 /* ============================================
-   DASHBOARD CARDS
+   DASHBOARD CARDS — SaaS upgrade
    ============================================ */
 
 .dashboard-header {
-    margin-bottom: 2rem;
+    margin-bottom: 1.75rem;
 }
 
 .dashboard-header h1 {
-    font-size: 2rem;
+    font-size: 1.75rem;
+    font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 0.5rem 0;
+    margin-bottom: 0.25rem;
 }
 
 .dashboard-header p {
     color: var(--text-secondary);
-    margin: 0;
+    font-size: 0.95rem;
 }
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
 }
 
 .stat-card {
     background: var(--bg-secondary);
     padding: 1.5rem;
-    border-radius: 12px;
+    border-radius: var(--radius);
     border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary-color);
     box-shadow: var(--card-shadow);
-    transition: all 0.3s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 60px; height: 60px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    opacity: .06;
+    border-radius: 0 0 0 60px;
 }
 
 .stat-card:hover {
     box-shadow: var(--card-shadow-hover);
-    transform: translateY(-4px);
+    transform: translateY(-3px);
 }
 
 .stat-label {
     color: var(--text-secondary);
-    font-size: 0.9rem;
-    font-weight: 500;
+    font-size: 0.8rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.5rem;
+    letter-spacing: 0.6px;
+    margin-bottom: 0.6rem;
 }
 
 .stat-value {
-    font-size: 2rem;
+    font-size: 1.9rem;
     font-weight: 700;
     color: var(--primary-color);
+    line-height: 1.1;
 }
 
 .stat-icon {
@@ -642,60 +658,63 @@ tbody tr:last-child td {
 }
 
 /* ============================================
-   FORMS
+   FORMS — SaaS upgrade
    ============================================ */
 
 .form-container {
     background: var(--bg-secondary);
     padding: 2rem;
-    border-radius: 12px;
+    border-radius: var(--radius);
     border: 1px solid var(--border-color);
     box-shadow: var(--card-shadow);
-    max-width: 600px;
+    max-width: 1000px;      /* wide enough for invoice table */
+    width: 100%;
     margin: 0 auto 2rem;
 }
 
 .form-container h2 {
     margin-top: 0;
     color: var(--primary-color);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
 }
 
 .form-row {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
 }
 
-.form-row.two-col {
-    grid-template-columns: repeat(2, 1fr);
-}
-
-.form-row.three-col {
-    grid-template-columns: repeat(3, 1fr);
-}
+.form-row.two-col   { grid-template-columns: repeat(2, 1fr); }
+.form-row.three-col { grid-template-columns: repeat(3, 1fr); }
 
 .form-group {
     display: flex;
     flex-direction: column;
+    gap: 0.4rem;
 }
 
 .form-group label {
     font-weight: 600;
-    margin-bottom: 0.5rem;
+    font-size: 0.88rem;
     color: var(--text-primary);
-    font-size: 0.95rem;
+    letter-spacing: 0.2px;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border-color);
+    padding: 0.7rem 0.9rem;
+    border: 1.5px solid var(--border-color);
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.95rem;
+    font-family: inherit;
     color: var(--text-primary);
-    background-color: var(--bg-primary);
-    transition: all 0.2s ease;
+    background: var(--bg-primary);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    width: 100%;
 }
 
 .form-group input:focus,
@@ -703,30 +722,20 @@ tbody tr:last-child td {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    background-color: var(--bg-secondary);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.05);
+    background: var(--bg-secondary);
+    box-shadow: 0 0 0 3px rgba(79,70,229,.08);
 }
 
-.form-group textarea {
-    resize: vertical;
-    min-height: 120px;
-}
-
-.form-help {
-    font-size: 0.85rem;
-    color: var(--text-light);
-    margin-top: 0.25rem;
-}
+.form-group textarea { resize: vertical; min-height: 90px; }
 
 .form-actions {
     display: flex;
     gap: 1rem;
-    margin-top: 2rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
 }
 
-.form-actions button {
-    flex: 1;
-}
+.form-actions .button { flex: 1; min-width: 140px; }
 
 /* ============================================
    BADGE & TAG
@@ -900,85 +909,112 @@ tbody tr:last-child td {
 .p-4 { padding: 2rem; }
 
 /* ============================================
-   RESPONSIVE DESIGN
+   RESPONSIVE — SaaS upgrade
    ============================================ */
 
 @media (max-width: 768px) {
-    .home-container {
-        flex-direction: column;
-    }
 
-    .home-content,
-    .home-image {
-        flex: 1;
-        padding: 1.5rem;
-    }
-
-    .home-text h1 {
-        font-size: 2rem;
-    }
-
+    /* Nav wraps cleanly */
     header.topbar {
+        padding: 0 1rem;
+        height: auto;
+        min-height: 56px;
         flex-wrap: wrap;
-        gap: 1rem;
+        gap: 0.5rem;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
     }
 
     header nav {
-        gap: 1rem;
+        gap: 0.25rem;
+        flex-wrap: wrap;
         width: 100%;
         justify-content: flex-start;
     }
 
-    main.login-main {
-        flex-direction: column;
+    header nav a {
+        font-size: 0.82rem;
+        padding: 0.35rem 0.65rem;
     }
 
-    .login-image {
-        display: none;
+    /* Main shell full-width */
+    main.page-shell {
+        padding: 1rem;
+        max-width: 100%;
     }
 
-    .login-content {
-        padding: 1.5rem;
+    /* Form containers go full-width */
+    .form-container {
+        padding: 1.25rem;
+        max-width: 100%;
+        border-radius: 10px;
     }
 
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .form-row.two-col {
-        grid-template-columns: 1fr;
-    }
-
+    /* Two-col / three-col collapse to single */
+    .form-row.two-col,
     .form-row.three-col {
         grid-template-columns: 1fr;
     }
 
-    main.page-shell {
-        padding: 1rem;
+    /* Stats grid: 2 cols on tablet, 1 on small */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    /* Dashboard h1 */
+    .dashboard-header h1 { font-size: 1.4rem; }
+
+    /* Tables scroll horizontally */
+    .table-container,
+    .table-scroll,
+    #tableWrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     table {
-        font-size: 0.9rem;
+        min-width: 520px;
+        font-size: 0.875rem;
     }
 
-    th,
-    td {
-        padding: 0.75rem 0.5rem;
+    th, td { padding: 0.65rem 0.75rem; }
+
+    /* Charts stack */
+    .charts-grid { grid-template-columns: 1fr; }
+
+    /* AI chat widget: full-width strip at bottom */
+    .ai-chat-widget {
+        width: calc(100vw - 24px);
+        right: 12px;
+        left: 12px;
+        bottom: 12px;
     }
 
-    .table-actions {
+    /* Form actions: stack buttons */
+    .form-actions {
         flex-direction: column;
     }
+    .form-actions .button { width: 100%; min-width: unset; }
 
+    /* Invoice details grid */
+    .invoice-details { grid-template-columns: 1fr; }
+
+    /* Table actions */
+    .table-actions { flex-direction: column; }
     .table-actions a,
-    .table-actions button {
-        width: 100%;
-        font-size: 0.75rem;
-    }
+    .table-actions button { width: 100%; font-size: 0.8rem; }
+}
 
-    .invoice-details {
-        grid-template-columns: 1fr;
-    }
+@media (max-width: 480px) {
+    .stats-grid { grid-template-columns: 1fr; }
+    .brand { font-size: 1.1rem; }
+    .stat-value { font-size: 1.5rem; }
+    .form-container { padding: 1rem; }
+    .invoice-container { padding: 1rem; }
+    main.login-main { flex-direction: column; }
+    .login-image { display: none; }
+    .login-content { padding: 1rem; }
 }
 
 @media (max-width: 480px) {
@@ -1543,4 +1579,224 @@ tbody tr:hover {
     .charts-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* ============================================
+   SAAS MISSING PIECES — final pass
+   ============================================ */
+
+/* Generic .card utility (used across pages) */
+.card {
+    background: #ffffff;
+    border-radius: var(--radius, 12px);
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+}
+
+.card:hover {
+    box-shadow: 0 8px 30px rgba(79,70,229,.1);
+    transform: translateY(-2px);
+    transition: all 0.2s ease;
+}
+
+/* .container helper — matches form-container width */
+.container {
+    max-width: 1100px;
+    width: 95%;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Global input / select / textarea — focus ring */
+input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+    font-family: 'Inter', -apple-system, sans-serif;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(79,70,229,.1);
+}
+
+/* Headings — tight + modern */
+h1, h2, h3, h4 {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text-primary);
+}
+
+/* Page-level h2 */
+h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+
+/* Mobile h2 */
+@media (max-width: 768px) {
+    h2 { font-size: 1.25rem; }
+    h1 { font-size: 1.5rem; }
+
+    /* Ensure all buttons go full-width inside form-actions on phone */
+    .form-actions button,
+    .form-actions .button {
+        width: 100%;
+    }
+
+    /* #tableWrapper must scroll, never overflow */
+    #tableWrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* Force Inter everywhere (final override) */
+* {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ============================================
+   MOBILE OVERRIDE — FINAL (highest priority)
+   ============================================ */
+
+@media screen and (max-width: 768px) {
+
+    /* ── Reset ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box !important; }
+
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    /* ── Nav ───────────────────────────────── */
+    header.topbar {
+        padding: 10px 14px !important;
+        height: auto !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    header nav {
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+        width: 100% !important;
+    }
+
+    header nav a {
+        font-size: 13px !important;
+        padding: 6px 10px !important;
+    }
+
+    /* ── Main shell ────────────────────────── */
+    main.page-shell {
+        padding: 12px !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    /* ── Container / Form ──────────────────── */
+    .container,
+    .form-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 12px !important;
+        margin: 0 0 16px 0 !important;
+        border-radius: 8px !important;
+    }
+
+    /* ── Form rows collapse to single column ── */
+    .form-row,
+    .form-row.two-col,
+    .form-row.three-col {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        width: 100% !important;
+    }
+
+    .form-group {
+        width: 100% !important;
+    }
+
+    /* ── Inputs / selects / textareas ─────── */
+    input,
+    select,
+    textarea {
+        width: 100% !important;
+        max-width: 100% !important;
+        font-size: 16px !important;   /* prevents iOS zoom */
+        box-sizing: border-box !important;
+        padding: 10px !important;
+    }
+
+    /* ── Product table wrapper ─────────────── */
+    #tableWrapper {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    #productTable {
+        min-width: 600px !important;
+        width: max-content !important;
+    }
+
+    /* ── Stat cards: 1 column on phone ─────── */
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    /* ── AI analytics cards: 1 column ─────── */
+    .ai-analytics {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    /* ── Charts: 1 column ──────────────────── */
+    .charts-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* ── Buttons: full width ───────────────── */
+    .form-actions {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    .form-actions .button,
+    .form-actions button {
+        width: 100% !important;
+        min-width: unset !important;
+    }
+
+    /* ── AI chat widget ────────────────────── */
+    .ai-chat-widget {
+        width: calc(100vw - 20px) !important;
+        left: 10px !important;
+        right: 10px !important;
+        bottom: 10px !important;
+    }
+
+    /* ── Invoice container ─────────────────── */
+    .invoice-container {
+        padding: 12px !important;
+        margin: 0 !important;
+    }
+
+    .invoice-details {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ── Headings ──────────────────────────── */
+    h1 { font-size: 1.4rem !important; }
+    h2 { font-size: 1.2rem !important; }
 }

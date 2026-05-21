@@ -1,11 +1,337 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+    .ai-analytics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin: 24px 0;
+    }
+
+    .ai-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px 22px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+        border-left: 4px solid #4f46e5;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ai-card.green {
+        border-color: #10b981;
+    }
+
+    .ai-card.amber {
+        border-color: #f59e0b;
+    }
+
+    .ai-card.purple {
+        border-color: #7c3aed;
+    }
+
+    .ai-card-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .6px;
+        color: #64748b;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .ai-card-value {
+        font-size: 26px;
+        font-weight: 800;
+        color: #1e293b;
+    }
+
+    .ai-card-sub {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 6px;
+    }
+
+    .conf-badge {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 20px;
+        margin-left: 8px;
+        vertical-align: middle;
+        text-transform: uppercase;
+    }
+
+    .conf-high {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .conf-medium {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .conf-low {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .growth-up {
+        color: #10b981;
+        font-weight: 700;
+    }
+
+    .growth-down {
+        color: #ef4444;
+        font-weight: 700;
+    }
+
+    .ai-icon {
+        position: absolute;
+        right: 16px;
+        top: 16px;
+        font-size: 28px;
+        opacity: .15;
+    }
+
+    /* ─── Employee Management ─────────────────────────── */
+    .emp-section {
+        margin-top: 40px;
+    }
+
+    .emp-section-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #1e293b;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .emp-section-title span.emp-badge {
+        font-size: 11px;
+        font-weight: 700;
+        background: #ede9fe;
+        color: #5b21b6;
+        padding: 3px 10px;
+        border-radius: 20px;
+        letter-spacing: .5px;
+        text-transform: uppercase;
+    }
+
+    .emp-grid {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+
+    @media (max-width: 900px) {
+        .emp-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Add-employee card */
+    .emp-form-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 28px 28px 24px;
+        box-shadow: 0 4px 24px rgba(79, 70, 229, .10);
+        border-top: 4px solid #4f46e5;
+    }
+
+    .emp-form-card h3 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0 0 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .emp-field {
+        margin-bottom: 16px;
+    }
+
+    .emp-field label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 6px;
+    }
+
+    .emp-field input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 14px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 14px;
+        color: #1e293b;
+        background: #f8fafc;
+        transition: border-color .2s, box-shadow .2s;
+        outline: none;
+    }
+
+    .emp-field input:focus {
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, .12);
+        background: #fff;
+    }
+
+    .btn-create-emp {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #4f46e5, #6d28d9);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        letter-spacing: .3px;
+        transition: transform .15s, box-shadow .15s, opacity .15s;
+        margin-top: 4px;
+    }
+
+    .btn-create-emp:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(79, 70, 229, .35);
+    }
+
+    .btn-create-emp:active {
+        transform: translateY(0);
+        opacity: .9;
+    }
+
+    /* Employee list card */
+    .emp-list-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, .07);
+        border-top: 4px solid #10b981;
+    }
+
+    .emp-list-card h3 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0 0 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .emp-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+    }
+
+    .emp-table thead tr {
+        background: #f1f5f9;
+    }
+
+    .emp-table th {
+        padding: 10px 14px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        border-bottom: 1.5px solid #e2e8f0;
+    }
+
+    .emp-table td {
+        padding: 12px 14px;
+        color: #334155;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+
+    .emp-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .emp-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .emp-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4f46e5, #818cf8);
+        color: #fff;
+        font-weight: 700;
+        font-size: 13px;
+        margin-right: 10px;
+        flex-shrink: 0;
+    }
+
+    .emp-name-cell {
+        display: flex;
+        align-items: center;
+    }
+
+    .emp-email-text {
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .btn-del-emp {
+        padding: 6px 14px;
+        background: #fff;
+        color: #ef4444;
+        border: 1.5px solid #fca5a5;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background .15s, color .15s, border-color .15s;
+        white-space: nowrap;
+    }
+
+    .btn-del-emp:hover {
+        background: #fee2e2;
+        border-color: #ef4444;
+    }
+
+    .emp-empty {
+        text-align: center;
+        padding: 28px 0;
+        color: #94a3b8;
+        font-size: 14px;
+    }
+
+    .emp-empty .emp-empty-icon {
+        font-size: 36px;
+        display: block;
+        margin-bottom: 8px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="dashboard-header">
     <h1>Admin Dashboard</h1>
-    <p>Manage your business operations</p>
+    <p>AI-powered business analytics</p>
 </div>
 
+<!-- KPI Stats -->
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-label">Total Invoices</div>
@@ -21,9 +347,73 @@
     </div>
 </div>
 
-<!-- AI Insights Box -->
+<!-- AI Analytics Cards -->
+<div class="ai-analytics">
+
+    <!-- Predicted Revenue -->
+    <div class="ai-card purple">
+        <span class="ai-icon">🔮</span>
+        <div class="ai-card-label">
+            AI Predicted Revenue (Next Month)
+            <span class="conf-badge conf-{{ ai_revenue.confidence }}">
+                {{ ai_revenue.confidence }} confidence
+            </span>
+        </div>
+        <div class="ai-card-value">₹{{ "%.2f"|format(ai_revenue.predicted) }}</div>
+        <div class="ai-card-sub">
+            Based on {{ ai_revenue.data_points }} month(s) of data
+            {% if ai_revenue.r2 is defined %} · R² = {{ ai_revenue.r2 }}{% endif %}
+        </div>
+    </div>
+
+    <!-- Growth Indicator -->
+    {% if growth_pct is not none %}
+    <div class="ai-card {% if growth_pct >= 0 %}green{% else %}ai-card{% endif %}">
+        <span class="ai-icon">{% if growth_pct >= 0 %}📈{% else %}📉{% endif %}</span>
+        <div class="ai-card-label">Predicted Growth vs Current</div>
+        <div class="ai-card-value
+             {% if growth_pct >= 0 %} growth-up {% else %} growth-down {% endif %}">
+            {% if growth_pct >= 0 %}+{% endif %}{{ growth_pct }}%
+        </div>
+        <div class="ai-card-sub">
+            {% if growth_pct >= 0 %}
+            Revenue expected to grow next month
+            {% else %}
+            Revenue may decline — consider promotions
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Best Product -->
+    {% if best_product %}
+    <div class="ai-card green">
+        <span class="ai-icon">⭐</span>
+        <div class="ai-card-label">Top Performing Product</div>
+        <div class="ai-card-value" style="font-size:18px;">{{ best_product.name }}</div>
+        <div class="ai-card-sub">
+            {{ best_product.category }} · ₹{{ "%.2f"|format(best_product.revenue) }} revenue
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Confidence Note -->
+    {% if ai_revenue.note %}
+    <div class="ai-card amber">
+        <span class="ai-icon">💡</span>
+        <div class="ai-card-label">AI Note</div>
+        <div class="ai-card-value" style="font-size:14px;font-weight:600;color:#92400e;">
+            {{ ai_revenue.note }}
+        </div>
+        <div class="ai-card-sub">Create more invoices to improve predictions</div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- AI Insights List -->
 <div class="ai-insights-box">
-    <div class="ai-insights-title">🤖 AI Insights & Predictions</div>
+    <div class="ai-insights-title">🤖 AI Insights &amp; Predictions</div>
     <ul class="insights-list">
         {% for insight in ai_insights %}
         <li>{{ insight }}</li>
@@ -35,113 +425,113 @@
 <div class="charts-grid">
     <div class="chart-container">
         <div class="chart-title">📈 Sales Over Time</div>
-        <div class="chart-canvas">
-            <canvas id="salesChart"></canvas>
-        </div>
+        <div class="chart-canvas"><canvas id="salesChart"></canvas></div>
     </div>
-    
     <div class="chart-container">
         <div class="chart-title">📦 Product Sales (Quantity)</div>
-        <div class="chart-canvas">
-            <canvas id="productQtyChart"></canvas>
-        </div>
+        <div class="chart-canvas"><canvas id="productQtyChart"></canvas></div>
     </div>
-    
     <div class="chart-container">
         <div class="chart-title">💰 Revenue Distribution</div>
-        <div class="chart-canvas">
-            <canvas id="revenueDistChart"></canvas>
-        </div>
+        <div class="chart-canvas"><canvas id="revenueDistChart"></canvas></div>
     </div>
 </div>
 
-
-
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    // Parse chart data — already json.dumps'd by backend, quoted for safe JS injection
-    const salesData      = JSON.parse('{{ sales_chart_data | safe }}');
-    const productQtyData = JSON.parse('{{ product_qty_chart_data | safe }}');
-    const revenueDistData = JSON.parse('{{ revenue_dist_chart_data | safe }}');
+    document.addEventListener('DOMContentLoaded', function () {
+        // Parse chart data — already json.dumps'd by backend, quoted for safe JS injection
+        const salesData = JSON.parse('{{ sales_chart_data | safe }}');
+        const productQtyData = JSON.parse('{{ product_qty_chart_data | safe }}');
+        const revenueDistData = JSON.parse('{{ revenue_dist_chart_data | safe }}');
 
-    const colors = ['#4f46e5','#6366f1','#818cf8','#c7d2fe','#e0e7ff','#10b981','#f59e0b','#ef4444'];
+        const colors = ['#4f46e5', '#6366f1', '#818cf8', '#c7d2fe', '#e0e7ff', '#10b981', '#f59e0b', '#ef4444'];
 
-    // ── Sales Over Time — Line Chart ────────────────────────────────
-    const salesCanvas = document.getElementById('salesChart');
-    if (salesCanvas && salesData.dates && salesData.dates.length > 0) {
-        new Chart(salesCanvas, {
-            type: 'line',
-            data: {
-                labels: salesData.dates,
-                datasets: [{
-                    label: 'Revenue (₹)',
-                    data: salesData.revenues,
-                    borderColor: '#4f46e5',
-                    backgroundColor: 'rgba(79,70,229,0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 5,
-                    pointHoverRadius: 7
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: true } },
-                scales: { y: { beginAtZero: true,
-                    ticks: { callback: v => '₹' + v.toLocaleString() } } }
-            }
-        });
-    } else if (salesCanvas) {
-        salesCanvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:#94a3b8;">No sales data yet.</p>';
-    }
+        // ── Sales Over Time — Line Chart ────────────────────────────────
+        const salesCanvas = document.getElementById('salesChart');
+        if (salesCanvas && salesData.dates && salesData.dates.length > 0) {
+            new Chart(salesCanvas, {
+                type: 'line',
+                data: {
+                    labels: salesData.dates,
+                    datasets: [{
+                        label: 'Revenue (₹)',
+                        data: salesData.revenues,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79,70,229,0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: v => '₹' + v.toLocaleString() }
+                        }
+                    }
+                }
+            });
+        } else if (salesCanvas) {
+            salesCanvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:#94a3b8;">No sales data yet.</p>';
+        }
 
-    // ── Product Quantity — Bar Chart ────────────────────────────────
-    const prodCanvas = document.getElementById('productQtyChart');
-    if (prodCanvas && productQtyData.names && productQtyData.names.length > 0) {
-        new Chart(prodCanvas, {
-            type: 'bar',
-            data: {
-                labels: productQtyData.names,
-                datasets: [{
-                    label: 'Quantity Sold',
-                    data: productQtyData.quantities,
-                    backgroundColor: colors.slice(0, productQtyData.names.length),
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    } else if (prodCanvas) {
-        prodCanvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:#94a3b8;">No product data yet.</p>';
-    }
+        // ── Product Quantity — Bar Chart ────────────────────────────────
+        const prodCanvas = document.getElementById('productQtyChart');
+        if (prodCanvas && productQtyData.names && productQtyData.names.length > 0) {
+            new Chart(prodCanvas, {
+                type: 'bar',
+                data: {
+                    labels: productQtyData.names,
+                    datasets: [{
+                        label: 'Quantity Sold',
+                        data: productQtyData.quantities,
+                        backgroundColor: colors.slice(0, productQtyData.names.length),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        } else if (prodCanvas) {
+            prodCanvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:#94a3b8;">No product data yet.</p>';
+        }
 
-    // ── Revenue Distribution — Pie Chart ────────────────────────────
-    const revCanvas = document.getElementById('revenueDistChart');
-    if (revCanvas && revenueDistData.names && revenueDistData.names.length > 0) {
-        new Chart(revCanvas, {
-            type: 'pie',
-            data: {
-                labels: revenueDistData.names,
-                datasets: [{
-                    data: revenueDistData.revenues,
-                    backgroundColor: colors.slice(0, revenueDistData.names.length)
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    } else if (revCanvas) {
-        revCanvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:#94a3b8;">No revenue data yet.</p>';
-    }
-});
+        // ── Revenue Distribution — Pie Chart ────────────────────────────
+        const revCanvas = document.getElementById('revenueDistChart');
+        if (revCanvas && revenueDistData.names && revenueDistData.names.length > 0) {
+            new Chart(revCanvas, {
+                type: 'pie',
+                data: {
+                    labels: revenueDistData.names,
+                    datasets: [{
+                        data: revenueDistData.revenues,
+                        backgroundColor: colors.slice(0, revenueDistData.names.length)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        } else if (revCanvas) {
+            revCanvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:#94a3b8;">No revenue data yet.</p>';
+        }
+    });
 </script>
+
+
+
+
+
+
 {% endblock %}

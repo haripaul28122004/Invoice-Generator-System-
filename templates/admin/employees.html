@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* ─── Employee Management Styles ─────────────────────────── */
+    .emp-section {
+        margin-top: 20px;
+    }
+
+    .emp-section-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #1e293b;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .emp-section-title span.emp-badge {
+        font-size: 11px;
+        font-weight: 700;
+        background: #ede9fe;
+        color: #5b21b6;
+        padding: 3px 10px;
+        border-radius: 20px;
+        letter-spacing: .5px;
+        text-transform: uppercase;
+    }
+
+    .emp-grid {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+
+    @media (max-width: 900px) {
+        .emp-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Add-employee card */
+    .emp-form-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 28px 28px 24px;
+        box-shadow: 0 4px 24px rgba(79,70,229,.10);
+        border-top: 4px solid #4f46e5;
+    }
+
+    .emp-form-card h3 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0 0 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .emp-field {
+        margin-bottom: 16px;
+    }
+
+    .emp-field label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 6px;
+    }
+
+    .emp-field input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 14px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 14px;
+        color: #1e293b;
+        background: #f8fafc;
+        transition: border-color .2s, box-shadow .2s;
+        outline: none;
+    }
+
+    .emp-field input:focus {
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+        background: #fff;
+    }
+
+    .btn-create-emp {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #4f46e5, #6d28d9);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        letter-spacing: .3px;
+        transition: transform .15s, box-shadow .15s, opacity .15s;
+        margin-top: 4px;
+    }
+
+    .btn-create-emp:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(79,70,229,.35);
+    }
+
+    .btn-create-emp:active {
+        transform: translateY(0);
+        opacity: .9;
+    }
+
+    /* Employee list card */
+    .emp-list-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 4px 24px rgba(0,0,0,.07);
+        border-top: 4px solid #10b981;
+    }
+
+    .emp-list-card h3 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0 0 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .emp-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+    }
+
+    .emp-table thead tr {
+        background: #f1f5f9;
+    }
+
+    .emp-table th {
+        padding: 10px 14px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        border-bottom: 1.5px solid #e2e8f0;
+    }
+
+    .emp-table td {
+        padding: 12px 14px;
+        color: #334155;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+
+    .emp-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .emp-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .emp-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4f46e5, #818cf8);
+        color: #fff;
+        font-weight: 700;
+        font-size: 13px;
+        margin-right: 10px;
+        flex-shrink: 0;
+    }
+
+    .emp-name-cell {
+        display: flex;
+        align-items: center;
+    }
+
+    .emp-email-text {
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .btn-del-emp {
+        padding: 6px 14px;
+        background: #fff;
+        color: #ef4444;
+        border: 1.5px solid #fca5a5;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background .15s, color .15s, border-color .15s;
+        white-space: nowrap;
+    }
+
+    .btn-del-emp:hover {
+        background: #fee2e2;
+        border-color: #ef4444;
+    }
+
+    .emp-empty {
+        text-align: center;
+        padding: 28px 0;
+        color: #94a3b8;
+        font-size: 14px;
+    }
+
+    .emp-empty .emp-empty-icon {
+        font-size: 36px;
+        display: block;
+        margin-bottom: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Employee Management</h1>
+    <p>Add, view, and manage employee accounts</p>
+</div>
+
+<div class="emp-section">
+
+    <div class="emp-grid">
+
+        <!-- ── Add Employee Form ──────────────────────────── -->
+        <div class="emp-form-card">
+            <h3>➕ Add New Employee</h3>
+
+            <form id="addEmployeeForm"
+                  action="{{ url_for('admin.admin_employees') }}"
+                  method="POST" novalidate>
+
+                <div class="emp-field">
+                    <label for="emp_username">Username</label>
+                    <input type="text" id="emp_username" name="username"
+                           placeholder="e.g. John Doe"
+                           required autocomplete="off">
+                </div>
+
+                <div class="emp-field">
+                    <label for="emp_email">Email Address</label>
+                    <input type="email" id="emp_email" name="email"
+                           placeholder="e.g. john@company.com"
+                           required autocomplete="off">
+                </div>
+
+                <div class="emp-field">
+                    <label for="emp_password">Password</label>
+                    <input type="password" id="emp_password" name="password"
+                           placeholder="Min. 6 characters" required>
+                </div>
+
+                <button type="submit" class="btn-create-emp" id="createEmployeeBtn">
+                    🚀 Create Employee
+                </button>
+
+            </form>
+        </div>
+
+        <!-- ── Employee List ─────────────────────────────── -->
+        <div class="emp-list-card">
+            <h3>🗂️ All Employees
+                <span style="font-size:12px;font-weight:600;color:#10b981;margin-left:4px;">
+                    ({{ employees | length }} total)
+                </span>
+            </h3>
+
+            {% if employees %}
+            <table class="emp-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Employee</th>
+                        <th>Email</th>
+                        <th style="text-align:right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in employees %}
+                    <tr>
+                        <td style="color:#94a3b8;font-size:12px;">{{ loop.index }}</td>
+                        <td>
+                            <div class="emp-name-cell">
+                                <span class="emp-avatar">{{ emp.username[0]|upper }}</span>
+                                <strong>{{ emp.username }}</strong>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="emp-email-text">{{ emp.email }}</span>
+                        </td>
+                        <td style="text-align:right;">
+                            <form action="{{ url_for('admin.admin_delete_employee', employee_id=emp.id) }}"
+                                  method="POST"
+                                  onsubmit="return confirm('Delete employee {{ emp.username }}? This cannot be undone.');">
+                                <button type="submit"
+                                        class="btn-del-emp"
+                                        id="delEmp_{{ emp.id }}">🗑 Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="emp-empty">
+                <span class="emp-empty-icon">👤</span>
+                No employees yet. Create one using the form.
+            </div>
+            {% endif %}
+        </div>
+
+    </div><!-- /.emp-grid -->
+</div><!-- /.emp-section -->
+
+<script>
+    // Client-side validation for Add Employee form
+    document.getElementById('addEmployeeForm').addEventListener('submit', function (e) {
+        const username = document.getElementById('emp_username').value.trim();
+        const email    = document.getElementById('emp_email').value.trim();
+        const password = document.getElementById('emp_password').value;
+
+        if (!username) {
+            e.preventDefault();
+            alert('Please enter a username.');
+            document.getElementById('emp_username').focus();
+            return;
+        }
+        if (!email || !email.includes('@')) {
+            e.preventDefault();
+            alert('Please enter a valid email address.');
+            document.getElementById('emp_email').focus();
+            return;
+        }
+        if (!password) {
+            e.preventDefault();
+            alert('Password cannot be empty.');
+            document.getElementById('emp_password').focus();
+            return;
+        }
+
+        // Visual feedback while submitting
+        const btn = document.getElementById('createEmployeeBtn');
+        btn.textContent = 'Creating…';
+        btn.disabled = true;
+    });
+</script>
+
+{% endblock %}

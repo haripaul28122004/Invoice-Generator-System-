@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title or 'InvoiceFlow' }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    {% block head %}{% endblock %}
 </head>
 <body>
     <header class="topbar">
@@ -12,9 +16,10 @@
         <nav>
             {% if session.get('username') %}
                 {% if session.get('role') == 'admin' %}
-                    <a href="{{ url_for('admin_dashboard') }}">Analytics</a>
-                    <a href="{{ url_for('admin_customers') }}">Customers</a>
-                    <a href="{{ url_for('admin_products') }}">Products</a>
+                    <a href="{{ url_for('admin.admin_dashboard') }}">Analytics</a>
+                    <a href="{{ url_for('admin.admin_customers') }}">Customers</a>
+                    <a href="{{ url_for('admin.admin_products') }}">Products</a>
+                    <a href="{{ url_for('admin.admin_employees') }}">Employees</a>
                     <a href="{{ url_for('logout') }}" class="button mini">Logout</a>
                 {% elif session.get('role') == 'user' %}
                     <a href="{{ url_for('create_invoice') }}">Create Invoice</a>
@@ -53,18 +58,18 @@
     </main>
 
     <!-- AI Chat Widget -->
-    <div class="ai-chat-widget">
-        <div class="chat-header">
-            <span>💬 Ask AI</span>
-            <button class="close-btn" type="button">&times;</button>
+    <div class="ai-chat-widget" id="aiChatWidget" style="bottom:16px;right:16px;position:fixed;z-index:999;width:340px;max-width:calc(100vw - 32px);border-radius:14px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+        <div class="chat-header" id="chatToggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;padding:14px 16px;font-weight:600;font-size:0.95rem;">
+            <span>💬 Ask AI Assistant</span>
+            <button class="close-btn" type="button" id="chatCloseBtn" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1;">&#8964;</button>
         </div>
-        <div class="chat-body" id="chatBody">
-            <div class="chat-messages" id="chatMessages">
+        <div class="chat-body" id="chatBody" style="display:none;flex-direction:column;background:#fff;">
+            <div class="chat-messages" id="chatMessages" style="max-height:260px;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;">
                 <div class="bot-message">👋 Hi! I'm InvoiceFlow AI. How can I help you?</div>
             </div>
-            <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Ask me anything..." onkeypress="handleChatKeypress(event)">
-                <button type="button" onclick="sendChatMessage()">Send</button>
+            <div class="chat-input-area" style="display:flex;gap:8px;padding:10px;border-top:1px solid #e5e7eb;">
+                <input type="text" id="chatInput" placeholder="Ask me anything..." onkeypress="handleChatKeypress(event)" style="flex:1;border-radius:8px;border:1.5px solid #e5e7eb;padding:8px 12px;font-size:14px;">
+                <button type="button" onclick="sendChatMessage()" style="background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;">Send</button>
             </div>
         </div>
     </div>
@@ -72,30 +77,22 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const chatBody = document.getElementById('chatBody');
-            const chatHeader = document.querySelector('.ai-chat-widget .chat-header');
-            const closeBtn = document.querySelector('.ai-chat-widget .close-btn');
+            const chatBody   = document.getElementById('chatBody');
+            const chatToggle = document.getElementById('chatToggle');
 
+            function openChat()  { chatBody.style.display = 'flex'; scrollChat(); }
+            function closeChat() { chatBody.style.display = 'none'; }
             function toggleChat() {
-                chatBody.classList.toggle('active');
-                if (chatBody.classList.contains('active')) {
-                    setTimeout(scrollChat, 50);
-                }
+                chatBody.style.display === 'none' ? openChat() : closeChat();
             }
 
-            chatHeader.addEventListener('click', function (event) {
-                if (event.target !== closeBtn) {
-                    toggleChat();
-                }
+            chatToggle.addEventListener('click', function(e) {
+                if (!e.target.classList.contains('close-btn')) toggleChat();
             });
 
-            closeBtn.addEventListener('click', function (event) {
-                event.stopPropagation();
-                toggleChat();
-            });
-
-            chatBody.addEventListener('click', function (event) {
-                event.stopPropagation();
+            document.getElementById('chatCloseBtn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                closeChat();
             });
 
             window.handleChatKeypress = function (event) {

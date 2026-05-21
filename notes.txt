@@ -1,0 +1,87 @@
+📘 INVOICE PROJECT – SIMPLE NOTES
+🧾 1. Project Name
+Invoice Management System (Flask)
+
+🎯 2. Purpose
+Create invoices
+
+Manage customers & products
+
+Generate PDF
+
+Send email
+
+Use AI for prediction
+
+🏗️ 3. Architecture
+Frontend → Backend → Database → Response
+🎨 4. Frontend
+HTML, CSS, JavaScript
+
+Stored in → templates/, static/
+
+Used for UI (forms, dashboard)
+
+⚙️ 5. Backend
+Flask (Python)
+
+File → app.py
+
+Functions:
+Handle routes (@app.route)
+
+Receive data (request.form)
+
+Send response (render_template, jsonify)
+
+🌐 6. Flow (VERY IMPORTANT)
+User → Form → HTTP Request → Flask → Database → Response → UI
+🗄️ 7. Database
+SQLite (database.db)
+
+Tables:
+users
+
+products
+
+invoices
+
+invoice_items
+
+🤖 8. AI (model.py)
+Predict price
+
+Predict revenue
+
+Best product
+
+📄 9. PDF
+Tool: pdfkit + wkhtmltopdf
+
+Converts HTML → PDF
+
+📧 10. Email
+Flask-Mail
+
+Sends invoice to customer
+
+🧪 11. Utility Files
+seed_data → add sample data
+
+reset_db → reset database
+
+clear_db → delete data
+
+create_user → add test user
+
+test → test system
+
+🔐 12. Security
+Password hashing
+
+Session login
+
+🎤 13. Viva Line
+This is a Flask-based invoice system where frontend sends data,
+ backend processes it, stores in SQLite, and
+  returns response with features like AI prediction, PDF, and email.

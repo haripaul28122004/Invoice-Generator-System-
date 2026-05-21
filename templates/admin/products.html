@@ -16,13 +16,22 @@
             </div>
             <div class="form-group">
                 <label for="product_category">Category *</label>
-                <input type="text" id="product_category" name="product_category" placeholder="e.g., Electronics" value="General" required>
+                <select id="product_category" name="product_category" required>
+                    <option value="General" selected>General</option>
+                    <option value="Electronics">Electronics</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="Software">Software</option>
+                    <option value="Services">Services</option>
+                    <option value="Consulting">Consulting</option>
+                    <option value="Other">Other</option>
+                </select>
             </div>
         </div>
         <div class="form-row three-col">
             <div class="form-group">
                 <label for="product_price">Price (₹) *</label>
-                <input type="number" id="product_price" name="product_price" min="0" step="0.01" placeholder="0.00" required>
+                <input type="number" id="product_price" name="product_price" min="0" step="0.01" placeholder="0.00"
+                    required>
             </div>
             <div class="form-group">
                 <label for="product_gst">GST Rate *</label>
@@ -49,7 +58,7 @@
     <div class="table-header">
         <h2>Product List</h2>
     </div>
-    
+
     {% if products %}
     <table>
         <thead>
@@ -75,13 +84,14 @@
                     <strong>{{ product['stock'] or 0 }}</strong>
                     {% if (product['stock'] or 0) == 0 %}
                     <span style="color: #ef4444;">● Out of stock</span>
-                    {% elif (product['stock'] or 0) < 10 %}
-                    <span style="color: #f59e0b;">⚠ Low stock</span>
-                    {% endif %}
+                    {% elif (product['stock'] or 0) < 10 %} <span style="color: #f59e0b;">⚠ Low stock</span>
+                        {% endif %}
                 </td>
                 <td class="table-actions">
-                    <form method="POST" action="{{ url_for('delete_product', product_id=product['id']) }}" style="display:inline;">
-                        <button type="submit" class="button danger mini" onclick="return confirm('Are you sure?')">Delete</button>
+                    <form method="POST" action="{{ url_for('admin.delete_product', product_id=product['id']) }}"
+                        style="display:inline;">
+                        <button type="submit" class="button danger mini"
+                            onclick="return confirm('Are you sure?')">Delete</button>
                     </form>
                 </td>
             </tr>

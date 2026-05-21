@@ -10,6 +10,17 @@ import json
 import os, glob, shutil
 
 try:
+    from model import train_model, predict_price as ai_predict_price, \
+                      predict_revenue, predict_best_product
+    AI_ENABLED = True
+except ImportError:
+    AI_ENABLED = False
+    def train_model(products): pass
+    def ai_predict_price(cat, qty, base): return base
+    def predict_revenue(db_path='database.db'): return {'predicted': 0.0, 'confidence': 'low', 'data_points': 0}
+    def predict_best_product(db_path='database.db'): return None
+
+try:
     import pdfkit
 
     # ── 1. Try every known install location ───────────────────────
@@ -124,6 +135,20 @@ def init_db():
         )
     ''')
     
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS invoice_items (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_id INTEGER NOT NULL,
+            product_id INTEGER,
+            product    TEXT NOT NULL,
+            quantity   INTEGER NOT NULL,
+            price      REAL NOT NULL,
+            gst_rate   REAL NOT NULL DEFAULT 0.18,
+            line_total REAL NOT NULL,
+            FOREIGN KEY(invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+        )
+    ''')
+
     # Migration: add new columns if they don't exist
     try:
         cur.execute("PRAGMA table_info(products)")
@@ -143,11 +168,24 @@ def init_db():
             cur.execute("ALTER TABLE invoices ADD COLUMN gst_rate REAL DEFAULT 0.18")
         if 'gst_amount' not in inv_cols:
             cur.execute("ALTER TABLE invoices ADD COLUMN gst_amount REAL DEFAULT 0")
+        if 'last_updated' not in inv_cols:
+            cur.execute("ALTER TABLE invoices ADD COLUMN last_updated TEXT DEFAULT ''")
+
+        # Seed invoice_items from existing single-product invoices (backward compat)
+        cur.execute('''
+            INSERT INTO invoice_items (invoice_id, product_id, product, quantity, price, gst_rate, line_total)
+            SELECT id, product_id, product, quantity, price,
+                   COALESCE(gst_rate, 0.18),
+                   ROUND(quantity * price, 2)
+            FROM invoices
+            WHERE id NOT IN (SELECT DISTINCT invoice_id FROM invoice_items)
+              AND product IS NOT NULL
+        ''')
 
         conn.commit()
     except Exception as e:
         print(f"Migration note: {e}")
-    
+
     conn.close()
 
 
@@ -202,7 +240,7 @@ def calculate_tax(subtotal, gst_rate=0.18):
     return {"tax": tax, "final_total": final_total, "gst_rate": gst_rate}
 
 
-def _generate_pdf_bytes(invoice_dict):
+def _generate_pdf_bytes(invoice_dict, items=None):
     """Render invoice_pdf.html and convert to PDF bytes via pdfkit/wkhtmltopdf."""
     print("USING NEW PDF SYSTEM")
     if not pdfkit or not _PDFKIT_CONFIG:
@@ -210,7 +248,7 @@ def _generate_pdf_bytes(invoice_dict):
             "wkhtmltopdf not found. Install it from https://wkhtmltopdf.org/downloads.html "
             "to C:\\Program Files\\wkhtmltopdf\\ and restart the server."
         )
-    html_str = render_template('invoice_pdf.html', invoice=invoice_dict)
+    html_str = render_template('invoice_pdf.html', invoice=invoice_dict, items=items or [])
     options = {
         'page-size':      'A4',
         'margin-top':     '10mm',
@@ -811,19 +849,11 @@ Invoice Management Team
 
 
 def get_revenue_prediction(conn):
-    """Predict next month revenue based on average daily revenue"""
+    """Predict next month revenue using the RandomForest model in model.py."""
     try:
-        invoices = conn.execute('SELECT total, date FROM invoices ORDER BY date DESC LIMIT 30').fetchall()
-        
-        if len(invoices) == 0:
-            return None
-        
-        total_revenue = sum(inv['total'] for inv in invoices)
-        avg_daily = total_revenue / 30
-        predicted_monthly = round(avg_daily * 30, 2)
-        
-        return predicted_monthly
-    except:
+        result = predict_revenue(DATABASE)
+        return result.get('predicted', 0.0)
+    except Exception:
         return None
 
 
@@ -997,7 +1027,7 @@ def require_role(*roles):
             if not user_role or user_role not in roles:
                 flash(f'Access denied. Required role: {", ".join(roles)}', 'danger')
                 if user_role == 'admin':
-                    return redirect(url_for('admin_dashboard'))
+                    return redirect(url_for('admin.admin_dashboard'))
                 elif user_role == 'user':
                     return redirect(url_for('user_dashboard'))
                 elif user_role == 'customer':
@@ -1011,7 +1041,7 @@ def require_role(*roles):
 @app.route('/')
 def home():
     if session.get('role') == 'admin':
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('admin.admin_dashboard'))
     elif session.get('role') == 'user':
         return redirect(url_for('user_dashboard'))
     elif session.get('role') == 'customer':
@@ -1077,47 +1107,6 @@ def ai_help():
     return jsonify({"response": response})
 
 
-@app.route('/train_chatbot', methods=['POST'])
-@require_role('admin')
-def train_chatbot():
-    """Admin route to train the chatbot"""
-    try:
-        question = request.form.get('question', '').strip().lower()
-        answer = request.form.get('answer', '').strip()
-        
-        if not question or not answer:
-            flash('Both question and answer are required.', 'warning')
-            return redirect(url_for('admin_dashboard'))
-        
-        conn = get_db_connection()
-        
-        # Check if question exists
-        existing = conn.execute(
-            "SELECT id FROM chatbot_training WHERE question=?", 
-            (question,)
-        ).fetchone()
-        
-        if existing:
-            conn.execute(
-                "UPDATE chatbot_training SET answer=? WHERE question=?", 
-                (answer, question)
-            )
-            flash('Chatbot training updated successfully.', 'success')
-        else:
-            conn.execute(
-                "INSERT INTO chatbot_training (question, answer) VALUES (?, ?)", 
-                (question, answer)
-            )
-            flash('Chatbot training added successfully.', 'success')
-        
-        conn.commit()
-        conn.close()
-        return redirect(url_for('admin_dashboard'))
-    except Exception as e:
-        flash(f'Error training chatbot: {str(e)}', 'danger')
-        return redirect(url_for('admin_dashboard'))
-
-
 # ============================================
 # API ROUTES FOR FRONTEND
 # ============================================
@@ -1166,135 +1155,13 @@ def admin_login():
         session['role'] = 'admin'
         session['user_id'] = 0
         flash('Admin logged in successfully.', 'success')
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('admin.admin_dashboard'))
 
     if session.get('role') == 'admin':
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('admin.admin_dashboard'))
 
     return render_template('admin/login.html')
 
-
-@app.route('/admin_dashboard')
-@require_role('admin')
-def admin_dashboard():
-    conn = get_db_connection()
-    
-    # Get statistics
-    totals = conn.execute('SELECT COUNT(*) AS count, COALESCE(SUM(total), 0) AS revenue FROM invoices').fetchone()
-    customer_count = conn.execute('SELECT COUNT(DISTINCT customer) AS count FROM invoices').fetchone()['count']
-    invoice_count = totals['count']
-    total_revenue = totals['revenue']
-    
-    # Get AI insights
-    ai_insights = get_ai_insights(conn)
-    
-    # Get chart data
-    sales_chart = get_sales_chart_data(conn)
-    product_qty_chart = get_product_quantity_data(conn)
-    revenue_dist_chart = get_revenue_distribution_data(conn)
-    
-    conn.close()
-
-    return render_template(
-        'admin/dashboard.html',
-        invoice_count=invoice_count,
-        total_revenue=total_revenue,
-        customer_count=customer_count,
-        ai_insights=ai_insights,
-        sales_chart_data=json.dumps(sales_chart),
-        product_qty_chart_data=json.dumps(product_qty_chart),
-        revenue_dist_chart_data=json.dumps(revenue_dist_chart)
-    )
-
-
-@app.route('/admin/customers')
-@require_role('admin')
-def admin_customers():
-    conn = get_db_connection()
-    
-    # Get distinct customers from invoices
-    customers = conn.execute('''
-        SELECT DISTINCT customer, COUNT(*) as invoice_count, SUM(total) as total_spent
-        FROM invoices
-        GROUP BY customer
-        ORDER BY total_spent DESC
-    ''').fetchall()
-    conn.close()
-
-    return render_template('admin/customers.html', customers=customers)
-
-
-@app.route('/admin/products', methods=['GET', 'POST'])
-@require_role('admin')
-def admin_products():
-    conn = get_db_connection()
-    
-    if request.method == 'POST':
-        product_name = request.form.get('product_name', '').strip()
-        product_category = request.form.get('product_category', 'General').strip()
-        product_price = request.form.get('product_price', '').strip()
-        product_gst = request.form.get('product_gst', '0.18').strip()
-        product_stock = request.form.get('product_stock', '0').strip()
-
-        try:
-            if not product_name:
-                raise ValueError('Product name is required.')
-            if not product_price:
-                raise ValueError('Product price is required.')
-            
-            product_price = float(product_price)
-            if product_price <= 0:
-                raise ValueError('Price must be greater than zero.')
-            
-            product_gst = float(product_gst)
-            if product_gst < 0 or product_gst > 1:
-                raise ValueError('GST must be between 0 and 1 (0-100%).')
-            
-            product_stock = int(product_stock)
-            if product_stock < 0:
-                raise ValueError('Stock cannot be negative.')
-
-            conn.execute(
-                'INSERT INTO products (name, category, price, gst, stock, created_date) VALUES (?, ?, ?, ?, ?, ?)',
-                (product_name, product_category, product_price, product_gst, product_stock, datetime.now().strftime('%d-%m-%Y'))
-            )
-            conn.commit()
-            flash('Product added successfully.', 'success')
-            return redirect(url_for('admin_products'))
-
-        except ValueError as error:
-            flash(str(error), 'danger')
-        except sqlite3.IntegrityError:
-            flash('Product with this name already exists.', 'warning')
-        except Exception as e:
-            flash(f'Error adding product: {str(e)}', 'danger')
-
-    products = conn.execute('SELECT * FROM products ORDER BY id DESC').fetchall()
-    conn.close()
-
-    return render_template('admin/products.html', products=products)
-
-
-@app.route('/admin/products/<int:product_id>/delete', methods=['POST'])
-@require_role('admin')
-def delete_product(product_id):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM products WHERE id = ?', (product_id,))
-    conn.commit()
-    conn.close()
-    flash('Product deleted successfully.', 'success')
-    return redirect(url_for('admin_products'))
-
-
-@app.route('/admin/invoices/<int:invoice_id>/delete', methods=['POST'])
-@require_role('admin')
-def admin_delete_invoice(invoice_id):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM invoices WHERE id = ?', (invoice_id,))
-    conn.commit()
-    conn.close()
-    flash(f'Invoice #{invoice_id} deleted successfully.', 'success')
-    return redirect(url_for('admin_dashboard'))
 
 
 # ============================================
@@ -1333,13 +1200,10 @@ def user_login():
 @require_role('user')
 def user_dashboard():
     conn = get_db_connection()
-    
     invoices = conn.execute('SELECT * FROM invoices ORDER BY id DESC').fetchall()
     totals = conn.execute('SELECT COALESCE(SUM(total), 0) AS revenue FROM invoices').fetchone()
     total_revenue = totals['revenue'] if totals else 0
-    
     conn.close()
-
     return render_template(
         'user/dashboard.html',
         invoices=invoices,
@@ -1351,99 +1215,110 @@ def user_dashboard():
 @app.route('/create_invoice', methods=['GET', 'POST'])
 @require_role('user')
 def create_invoice():
-    if session.get('role') != 'user':
-        return redirect(url_for('home'))
-    
     conn = get_db_connection()
-    
+
     if request.method == 'POST':
-        customer = request.form.get('customer', '').strip()
-        customer_email = request.form.get('customer_email', '').strip()
+        customer         = request.form.get('customer', '').strip()
+        customer_email   = request.form.get('customer_email', '').strip()
         customer_address = request.form.get('customer_address', '').strip()
-        product_id = request.form.get('product_id', '').strip()
-        quantity = request.form.get('quantity', '').strip()
+
+        # Multi-product arrays
+        product_ids = request.form.getlist('product_id[]')
+        quantities  = request.form.getlist('quantity[]')
 
         try:
-            # Validate inputs
             if not customer:
                 raise ValueError('Customer name is required.')
             if not customer_email or '@' not in customer_email:
                 raise ValueError('A valid customer email is required.')
             if not customer_address:
                 raise ValueError('Customer address is required.')
-            if not product_id:
-                raise ValueError('Product is required.')
-            if not quantity:
-                raise ValueError('Quantity is required.')
-            
-            # Convert and validate types
-            try:
-                product_id = int(product_id)
-                quantity = int(quantity)
-            except ValueError:
-                raise ValueError('Invalid product or quantity.')
-            
-            # Validate values
-            if quantity <= 0:
-                raise ValueError('Quantity must be greater than zero.')
-            
-            # Get product details
-            product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
-            if not product:
-                raise ValueError('Product not found.')
+            if not product_ids:
+                raise ValueError('At least one product is required.')
 
-            price = float(product['price'])
-            product_name = product['name']
-            gst_rate = float(product['gst'] if product['gst'] is not None else 0.18)
-            
-            # Stock management: Check available stock
-            current_stock = product['stock'] if product['stock'] is not None else 0
-            if current_stock < quantity:
-                raise ValueError(f'Insufficient stock. Available: {current_stock}, Requested: {quantity}')
-            
-            subtotal = round(quantity * price, 2)
-            gst_amount = round(subtotal * gst_rate, 2)
-            total = round(subtotal + gst_amount, 2)
             date = datetime.now().strftime('%d-%m-%Y')
+            subtotal   = 0.0
+            item_rows  = []   # (product_id, product_name, qty, price, gst_rate, line_total)
 
-            print(f"DEBUG create_invoice: customer={customer!r} email={customer_email!r} product_id={product_id} quantity={quantity} gst={gst_rate}")
+            for i, pid_str in enumerate(product_ids):
+                qty_str = quantities[i] if i < len(quantities) else '0'
+                try:
+                    pid = int(pid_str)
+                    qty = int(qty_str)
+                except ValueError:
+                    raise ValueError(f'Invalid product or quantity on row {i+1}.')
 
-            # SAVE INVOICE
-            conn.execute(
+                if qty <= 0:
+                    raise ValueError(f'Quantity on row {i+1} must be greater than zero.')
+
+                product = conn.execute('SELECT * FROM products WHERE id = ?', (pid,)).fetchone()
+                if not product:
+                    raise ValueError(f'Product on row {i+1} not found.')
+
+                stock = product['stock'] if product['stock'] is not None else 0
+                if stock < qty:
+                    raise ValueError(f'Insufficient stock for "{product["name"]}". Available: {stock}, Requested: {qty}')
+
+                price      = float(product['price'])
+                gst_rate   = float(product['gst'] if product['gst'] is not None else 0.18)
+                line_total = round(qty * price, 2)
+                subtotal  += line_total
+                item_rows.append((pid, product['name'], qty, price, gst_rate, line_total))
+
+            # Use weighted-average GST for the invoice header
+            avg_gst    = item_rows[0][4] if len(item_rows) == 1 else 0.18
+            gst_amount = round(subtotal * avg_gst, 2)
+            grand_total = round(subtotal + gst_amount, 2)
+            first_product = item_rows[0][1]   # for dashboard list compat
+
+            # ── Insert invoice header ────────────────────────────────
+            cursor = conn.execute(
                 '''INSERT INTO invoices
                    (customer, customer_email, customer_address,
                     product, quantity, price, total, gst_rate, gst_amount,
                     date, created_by, product_id)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                 (customer, customer_email, customer_address,
-                 product_name, quantity, price, total, gst_rate, gst_amount,
-                 date, session.get('username'), product_id)
+                 first_product, item_rows[0][2], item_rows[0][3],
+                 grand_total, avg_gst, gst_amount,
+                 date, session.get('username'), item_rows[0][0])
             )
+            invoice_id = cursor.lastrowid
 
-            # Reduce stock after invoice creation
-            conn.execute(
-                'UPDATE products SET stock = stock - ? WHERE id = ?',
-                (quantity, product_id)
-            )
+            # ── Insert line items + deduct stock ─────────────────────
+            for pid, pname, qty, price, gst_rate, line_total in item_rows:
+                conn.execute(
+                    '''INSERT INTO invoice_items
+                       (invoice_id, product_id, product, quantity, price, gst_rate, line_total)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                    (invoice_id, pid, pname, qty, price, gst_rate, line_total)
+                )
+                conn.execute(
+                    'UPDATE products SET stock = stock - ? WHERE id = ?',
+                    (qty, pid)
+                )
 
             conn.commit()
 
-            # Fetch the newly saved invoice to build the PDF
+            # Fetch saved invoice + items for email PDF
             new_invoice = conn.execute(
-                'SELECT * FROM invoices ORDER BY id DESC LIMIT 1'
+                'SELECT * FROM invoices WHERE id = ?', (invoice_id,)
             ).fetchone()
+            new_items = conn.execute(
+                'SELECT * FROM invoice_items WHERE invoice_id = ?', (invoice_id,)
+            ).fetchall()
             conn.close()
 
-            # SEND EMAIL with PDF attachment — failure is non-fatal
+            # Email with PDF — non-fatal
             try:
-                pdf_bytes = _generate_pdf_bytes(dict(new_invoice))
-                send_invoice_email(customer_email, customer, total, pdf_data=pdf_bytes)
+                pdf_bytes = _generate_pdf_bytes(dict(new_invoice), [dict(r) for r in new_items])
+                send_invoice_email(customer_email, customer, grand_total, pdf_data=pdf_bytes)
                 flash('Invoice created successfully and email sent with PDF.', 'success')
             except Exception as email_err:
                 print(f"Email failed (non-fatal): {email_err}")
                 flash('Invoice created successfully. Email could not be sent.', 'warning')
 
-            session['invoice_email_preview'] = generate_email(customer, product_name, total, 0)
+            session['invoice_email_preview'] = generate_email(customer, first_product, grand_total, 0)
             return redirect(url_for('user_dashboard'))
 
         except ValueError as error:
@@ -1602,30 +1477,79 @@ def view_invoice(invoice_id):
 
     conn = get_db_connection()
     invoice = conn.execute('SELECT * FROM invoices WHERE id = ?', (invoice_id,)).fetchone()
-    conn.close()
 
     if invoice is None:
+        conn.close()
         flash('Invoice not found.', 'warning')
         role = session.get('role')
-        if role == 'admin':
-            return redirect(url_for('admin_dashboard'))
-        elif role == 'user':
-            return redirect(url_for('user_dashboard'))
-        elif role == 'customer':
-            return redirect(url_for('customer_dashboard'))
+        if role == 'admin': return redirect(url_for('admin_dashboard'))
+        if role == 'user':  return redirect(url_for('user_dashboard'))
+        if role == 'customer': return redirect(url_for('customer_dashboard'))
         return redirect(url_for('home'))
 
-    # Access control for customers: match by email so name differences don't block access
+    # Access control for customers
     if session.get('role') == 'customer':
         session_email = (session.get('email') or '').strip().lower()
         invoice_email = (invoice['customer_email'] or '').strip().lower()
         print(f"VIEW_INVOICE — SESSION EMAIL: {session_email!r}  |  INVOICE EMAIL: {invoice_email!r}")
         if session_email != invoice_email:
+            conn.close()
             flash('You do not have access to this invoice.', 'danger')
             return redirect(url_for('customer_dashboard'))
 
-    return render_template('invoice.html', invoice=invoice)
+    items = conn.execute(
+        'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id', (invoice_id,)
+    ).fetchall()
+    conn.close()
 
+    return render_template('invoice.html', invoice=dict(invoice), items=[dict(r) for r in items])
+
+@app.route('/admin/customer/<customer>/invoices')
+@require_role('admin')
+def admin_customer_invoices(customer):
+    conn = get_db_connection()
+
+    invoices = conn.execute(
+        'SELECT * FROM invoices WHERE customer=? ORDER BY id DESC',
+        (customer,)
+    ).fetchall()
+
+    conn.close()
+
+    return render_template(
+        'admin/customer_invoices.html',
+        invoices=invoices,
+        customer=customer
+    )
+
+@app.route('/admin/invoice/<int:invoice_id>/edit', methods=['GET', 'POST'])
+@require_role('admin')
+def edit_invoice(invoice_id):
+    conn = get_db_connection()
+
+    if request.method == 'POST':
+        customer = request.form.get('customer')
+        quantity = request.form.get('quantity')
+
+        conn.execute(
+            'UPDATE invoices SET customer=?, quantity=? WHERE id=?',
+            (customer, quantity, invoice_id)
+        )
+
+        conn.commit()
+        conn.close()
+
+        flash('Invoice updated successfully', 'success')
+        return redirect(url_for('admin.admin_dashboard'))
+
+    invoice = conn.execute(
+        'SELECT * FROM invoices WHERE id=?',
+        (invoice_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return render_template('admin/edit_invoice.html', invoice=invoice)
 
 @app.route('/invoice/<int:invoice_id>/download')
 def download_invoice(invoice_id):
@@ -1659,8 +1583,15 @@ def download_invoice(invoice_id):
     print(f"Downloading invoice: {invoice_id}  |  customer: {invoice['customer']!r}")
     invoice_dict = dict(invoice)
 
+    # Fetch line items
+    conn2 = get_db_connection()
+    items = [dict(r) for r in conn2.execute(
+        'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id', (invoice_id,)
+    ).fetchall()]
+    conn2.close()
+
     try:
-        pdf_bytes = _generate_pdf_bytes(invoice_dict)
+        pdf_bytes = _generate_pdf_bytes(invoice_dict, items)
         return send_file(
             io.BytesIO(pdf_bytes),
             as_attachment=True,
@@ -1675,7 +1606,7 @@ def download_invoice(invoice_id):
             return redirect(url_for('customer_dashboard'))
         elif role == 'user':
             return redirect(url_for('user_dashboard'))
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('admin.admin_dashboard'))
 
 
 @app.route('/logout')
@@ -1688,11 +1619,60 @@ def logout():
 
 
 
-if __name__ == '__main__':
+# ── Always initialise DB, regardless of launch method ───────────────────
+with app.app_context():
     init_db()
     seed_employee()
+
+    # ── Train AI price model on real product data ────────────────────────
+    if AI_ENABLED:
+        try:
+            _conn = sqlite3.connect(DATABASE)
+            _conn.row_factory = sqlite3.Row
+            _products = [dict(r) for r in
+                         _conn.execute('SELECT name, category, price FROM products').fetchall()]
+            _conn.close()
+            train_model(_products)
+        except Exception as _e:
+            print(f'[AI] Model training skipped: {_e}')
+
+# ── AI Price Prediction API ───────────────────────────────────────────────
+@app.route('/api/predict_price', methods=['POST'])
+def api_predict_price():
+    """Return ML-predicted unit price for a product + quantity."""
+    data = request.get_json(force=True) or {}
+    product_id = data.get('product_id')
+    quantity   = int(data.get('quantity', 1) or 1)
+
+    if not product_id:
+        return jsonify({'error': 'product_id required'}), 400
+
+    conn = get_db_connection()
+    row  = conn.execute('SELECT name, category, price FROM products WHERE id=?',
+                        (product_id,)).fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({'error': 'product not found'}), 404
+
+    base_price = float(row['price'])
+    predicted  = ai_predict_price(row['category'] or '', quantity, base_price)
+
+    return jsonify({
+        'product':    row['name'],
+        'category':   row['category'],
+        'base_price': base_price,
+        'predicted':  predicted,
+        'quantity':   quantity,
+        'discount_pct': round((1 - predicted / base_price) * 100, 1) if base_price else 0
+    })
+
+from admin_routes import admin_bp
+app.register_blueprint(admin_bp, url_prefix='')
+
+if __name__ == '__main__':
     print(app.url_map)
-    app.run(debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
 
 
 

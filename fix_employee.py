@@ -3,7 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 DB = 'database.db'
 EMAIL = 'haripaul282004@gmail.com'
-PASSWORD = 'haripaul123'
+PASSWORD = 'haripaul007'
 
 conn = sqlite3.connect(DB)
 conn.row_factory = sqlite3.Row

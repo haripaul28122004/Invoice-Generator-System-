@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h2>{{ customer }} - Invoices</h2>
+</div>
+
+<div class="table-container">
+    <table class="table">
+        <tr>
+            <th>Invoice ID</th>
+            <th>Date</th>
+            <th>Total</th>
+            <th>Actions</th>
+        </tr>
+
+        {% for invoice in invoices %}
+        <tr>
+            <td>#{{ invoice.id }}</td>
+            <td>{{ invoice.date }}</td>
+            <td>₹{{ invoice.total }}</td>
+            <td>
+                <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-warning btn-sm">
+                    Edit
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}
