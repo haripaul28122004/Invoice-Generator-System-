@@ -1,3 +1,7 @@
+import sys
+if __name__ == '__main__':
+    sys.modules['app'] = sys.modules['__main__']
+
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, jsonify
 from flask_mail import Mail, Message
 import sqlite3
@@ -216,14 +220,14 @@ def seed_employee():
                 "user"
             )
         )
-        print("\u2713 Employee user created: haripaul282004@gmail.com")
+        print("[OK] Employee user created: haripaul282004@gmail.com")
     else:
         # Always refresh hash + role so a stale record never blocks login
         cur.execute(
             "UPDATE users SET username = ?, password = ?, role = ? WHERE email = ?",
             ("Hari Paul", hashed, "user", "haripaul282004@gmail.com")
         )
-        print("\u2713 Employee user refreshed: haripaul282004@gmail.com")
+        print("[OK] Employee user refreshed: haripaul282004@gmail.com")
 
     conn.commit()
     conn.close()
