@@ -19,13 +19,8 @@ if __name__ == '__main__':
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, jsonify
 from flask_mail import Mail, Message
 import sqlite3
-
-try:
-    import resend as _resend
-    _RESEND_AVAILABLE = True
-except ImportError:
-    _RESEND_AVAILABLE = False
-    print("[EMAIL] resend package not installed. Run: pip install resend")
+import urllib.request as _urllib_req
+import json as _json_lib
 
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -232,6 +227,8 @@ def init_db():
         inv_cols = [col[1] for col in cur.fetchall()]
         if 'customer_email' not in inv_cols:
             cur.execute("ALTER TABLE invoices ADD COLUMN customer_email TEXT DEFAULT ''")
+        if 'customer_phone' not in inv_cols:
+            cur.execute("ALTER TABLE invoices ADD COLUMN customer_phone TEXT DEFAULT ''")
         if 'customer_address' not in inv_cols:
             cur.execute("ALTER TABLE invoices ADD COLUMN customer_address TEXT DEFAULT ''")
         if 'gst_rate' not in inv_cols:
@@ -711,100 +708,93 @@ def build_invoice_pdf(invoice):
     return buffer.read()
 
 
+def _resend_send(to_email, subject, html_body, pdf_data=None):
+    """Call Resend API via built-in urllib — no extra packages needed."""
+    api_key = os.environ.get('RESEND_API_KEY', 're_LvihM4fk_Pd72KBSsfEyCy2Co2HvJVvie')
+
+    payload = {
+        "from":    "InvoiceFlow <onboarding@resend.dev>",
+        "to":      [to_email],
+        "subject": subject,
+        "html":    html_body,
+    }
+    if pdf_data:
+        import base64
+        payload["attachments"] = [{
+            "filename": "invoice.pdf",
+            "content":  base64.b64encode(pdf_data).decode('utf-8'),
+        }]
+
+    data = _json_lib.dumps(payload).encode('utf-8')
+    req  = _urllib_req.Request(
+        'https://api.resend.com/emails',
+        data=data,
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type':  'application/json',
+            'User-Agent':    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        method='POST'
+    )
+    with _urllib_req.urlopen(req, timeout=15) as resp:
+        result = _json_lib.loads(resp.read())
+    return result
+
+
 def send_invoice_email(email, name, total, pdf_data=None):
-    """Send invoice email via Resend (HTTPS API — works on Render free tier)."""
+    """Send invoice email via Resend HTTPS API — works on Render free tier."""
     try:
         if not email or '@' not in email:
             print(f"[EMAIL] Invalid address: {email}")
             return False
 
-        api_key = os.environ.get('RESEND_API_KEY', 're_LvihM4fk_Pd72KBSsfEyCy2Co2HvJVvie')
-        if not api_key:
-            print("[EMAIL] RESEND_API_KEY not set — email skipped.")
-            return False
-
-        if not _RESEND_AVAILABLE:
-            print("[EMAIL] resend package not installed — email skipped.")
-            return False
-
-        _resend.api_key = api_key
+        # Resend Free Tier restriction: can only send to the registered owner's email (haripaul28122004@gmail.com)
+        # If the customer email is different, we redirect it to the owner so testing/viva succeeds.
+        owner_email = 'haripaul28122004@gmail.com'
+        subject = "Your Invoice from InvoiceFlow"
+        
+        if email.lower() != owner_email.lower():
+            subject = f"[Test Mode] {subject} (Intended for: {email})"
+            email = owner_email
 
         now_str = datetime.now().strftime('%d-%m-%Y')
-
         html_body = f"""\
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
+<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0">
-    <tr><td align="center" style="padding:32px 0;">
-      <table width="580" cellpadding="0" cellspacing="0"
-             style="background:#ffffff;border-radius:8px;
-                    box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;">
-        <tr>
-          <td style="background:#4f46e5;padding:28px 32px;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;">InvoiceFlow</h1>
-            <p  style="margin:4px 0 0;color:#c7d2fe;font-size:13px;">Invoice Notification</p>
-          </td>
-        </tr>
-        <tr><td style="padding:28px 32px 0;">
-          <p style="margin:0;font-size:15px;color:#1e293b;">Dear <strong>{name}</strong>,</p>
-          <p style="margin:12px 0 0;font-size:14px;color:#475569;line-height:1.6;">
-            Thank you for your business.<br>Please find your invoice attached.
-          </p>
-        </td></tr>
-        <tr><td style="padding:24px 32px;">
-          <table width="100%" cellpadding="0" cellspacing="0"
-                 style="background:#f8fafc;border:1px solid #e2e8f0;
-                        border-radius:6px;border-left:4px solid #4f46e5;">
-            <tr><td style="padding:18px 20px;">
-              <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;
-                        letter-spacing:1px;color:#64748b;">Invoice Summary</p>
-              <table width="100%">
-                <tr>
-                  <td style="font-size:13px;color:#475569;">Total Amount</td>
-                  <td align="right" style="font-size:18px;font-weight:bold;
-                                          color:#4f46e5;">₹{total:,.2f}</td>
-                </tr>
-                <tr>
-                  <td style="font-size:13px;color:#475569;padding-top:6px;">Date</td>
-                  <td align="right" style="font-size:13px;color:#475569;
-                                          padding-top:6px;">{now_str}</td>
-                </tr>
-              </table>
-            </td></tr>
-          </table>
-        </td></tr>
-        <tr><td style="background:#f8fafc;padding:18px 32px;
-                     border-top:1px solid #e2e8f0;">
-          <p style="margin:0;font-size:12px;color:#94a3b8;">
-            Thank you &mdash;
-            <strong style="color:#4f46e5;">InvoiceFlow Team</strong>
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>"""
+  <table width="100%"><tr><td align="center" style="padding:32px 0;">
+    <table width="560" style="background:#fff;border-radius:8px;
+           box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;">
+      <tr><td style="background:#4f46e5;padding:24px 28px;">
+        <h1 style="margin:0;color:#fff;font-size:20px;">InvoiceFlow</h1>
+        <p style="margin:4px 0 0;color:#c7d2fe;font-size:12px;">Invoice Notification</p>
+      </td></tr>
+      <tr><td style="padding:24px 28px 0;">
+        <p style="margin:0;font-size:15px;color:#1e293b;">Dear <strong>{name}</strong>,</p>
+        <p style="margin:10px 0 0;font-size:14px;color:#475569;">Thank you for your business. Please find your invoice attached.</p>
+      </td></tr>
+      <tr><td style="padding:20px 28px;">
+        <table width="100%" style="background:#f8fafc;border-left:4px solid #4f46e5;
+               border-radius:4px;padding:16px;">
+          <tr>
+            <td style="font-size:13px;color:#475569;">Total Amount</td>
+            <td align="right" style="font-size:18px;font-weight:bold;color:#4f46e5;">₹{total:,.2f}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#475569;padding-top:6px;">Date</td>
+            <td align="right" style="font-size:13px;color:#475569;padding-top:6px;">{now_str}</td>
+          </tr>
+        </table>
+      </td></tr>
+      <tr><td style="background:#f8fafc;padding:16px 28px;border-top:1px solid #e2e8f0;">
+        <p style="margin:0;font-size:12px;color:#94a3b8;">Thank you —
+          <strong style="color:#4f46e5;">InvoiceFlow Team</strong></p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>"""
 
-        params = {
-            "from": "InvoiceFlow <onboarding@resend.dev>",
-            "to":   [email],
-            "subject": "Your Invoice from InvoiceFlow",
-            "html": html_body,
-        }
-
-        # Attach PDF if provided
-        if pdf_data:
-            import base64
-            params["attachments"] = [{
-                "filename": "invoice.pdf",
-                "content":  list(pdf_data),
-            }]
-
-        _resend.Emails.send(params)
-        print(f"[EMAIL] Sent via Resend to {email}")
+        result = _resend_send(email, subject, html_body, pdf_data)
+        print(f"[EMAIL] Sent via Resend to {email}: {result}")
         return True
 
     except BaseException as e:
@@ -857,31 +847,24 @@ def test_email():
 
 @app.route('/test_resend')
 def test_resend():
-    """Synchronous Resend test — shows exact API response."""
+    """Synchronous Resend test via urllib — no login required for diagnostics."""
     to = request.args.get('to', 'haripaul28122004@gmail.com')
-    api_key = os.environ.get('RESEND_API_KEY', 're_LvihM4fk_Pd72KBSsfEyCy2Co2HvJVvie')
-
-    # Check if resend is available
-    if not _RESEND_AVAILABLE:
-        return '<h2 style="color:red">❌ resend package NOT installed on server!</h2>', 500
-
     try:
-        _resend.api_key = api_key
-        resp = _resend.Emails.send({
-            "from":    "InvoiceFlow <onboarding@resend.dev>",
-            "to":      [to],
-            "subject": "InvoiceFlow — Resend Test",
-            "html":    "<h2>✅ Resend is working!</h2><p>Email delivery confirmed.</p>",
-        })
+        result = _resend_send(
+            to,
+            "InvoiceFlow — Test Email",
+            "<h2 style='color:green'>\u2705 Resend via urllib is working!</h2>"
+            "<p>Email delivery confirmed from InvoiceFlow.</p>"
+        )
         return (
-            f'<h2 style="color:green">✅ Resend accepted!</h2>'
-            f'<p>To: <b>{to}</b></p>'
-            f'<pre>Response: {resp}</pre>'
-            f'<p>Check inbox + <b>spam folder</b></p>'
+            f'<h2 style="color:green">\u2705 Resend API accepted!</h2>'
+            f'<p>Sent to: <b>{to}</b></p>'
+            f'<pre>Response: {result}</pre>'
+            f'<p>\u2192 Check inbox + <b>spam folder</b> of {to}</p>'
         )
     except Exception as e:
         tb = traceback.format_exc()
-        return f'<h2 style="color:red">❌ Resend ERROR</h2><pre>{tb}</pre>', 500
+        return f'<h2 style="color:red">\u274c Resend ERROR</h2><pre>{tb}</pre>', 500
 
 
 def get_product_gst(conn, product_name):
@@ -1336,6 +1319,7 @@ def create_invoice():
     if request.method == 'POST':
         customer         = request.form.get('customer', '').strip()
         customer_email   = request.form.get('customer_email', '').strip()
+        customer_phone   = request.form.get('customer_phone', '').strip()
         customer_address = request.form.get('customer_address', '').strip()
 
         # Multi-product arrays
@@ -1347,6 +1331,8 @@ def create_invoice():
                 raise ValueError('Customer name is required.')
             if not customer_email or '@' not in customer_email:
                 raise ValueError('A valid customer email is required.')
+            if not customer_phone:
+                raise ValueError('Customer phone number is required.')
             if not customer_address:
                 raise ValueError('Customer address is required.')
             if not product_ids:
@@ -1390,11 +1376,11 @@ def create_invoice():
             # ── Insert invoice header ────────────────────────────────
             cursor = conn.execute(
                 '''INSERT INTO invoices
-                   (customer, customer_email, customer_address,
+                   (customer, customer_email, customer_phone, customer_address,
                     product, quantity, price, total, gst_rate, gst_amount,
                     date, created_by, product_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                (customer, customer_email, customer_address,
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                (customer, customer_email, customer_phone, customer_address,
                  first_product, item_rows[0][2], item_rows[0][3],
                  grand_total, avg_gst, gst_amount,
                  date, session.get('username'), item_rows[0][0])
@@ -1726,6 +1712,40 @@ def download_invoice(invoice_id):
         elif role == 'user':
             return redirect(url_for('user_dashboard'))
         return redirect(url_for('admin.admin_dashboard'))
+
+
+@app.route('/uploads/invoices/invoice_<int:invoice_id_padded>.pdf')
+def public_invoice_pdf(invoice_id_padded):
+    if invoice_id_padded > 1000:
+        invoice_id = invoice_id_padded - 1000
+    else:
+        invoice_id = invoice_id_padded
+
+    conn = get_db_connection()
+    invoice = conn.execute('SELECT * FROM invoices WHERE id = ?', (invoice_id,)).fetchone()
+    conn.close()
+
+    if invoice is None:
+        return "Invoice not found", 404
+
+    invoice_dict = dict(invoice)
+
+    conn2 = get_db_connection()
+    items = [dict(r) for r in conn2.execute(
+        'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id', (invoice_id,)
+    ).fetchall()]
+    conn2.close()
+
+    try:
+        pdf_bytes = _generate_pdf_bytes(invoice_dict, items)
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            as_attachment=False,  # Inline so it displays in browser!
+            download_name=f"invoice_{invoice_id_padded}.pdf",
+            mimetype='application/pdf'
+        )
+    except Exception as e:
+        return f"Error generating PDF: {e}", 500
 
 
 @app.route('/logout')
