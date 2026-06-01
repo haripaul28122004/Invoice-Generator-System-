@@ -205,28 +205,25 @@
     <form method="POST" id="invoiceForm">
 
         <!-- ── Customer Details ──────────────────────────────── -->
-        <div class="form-row three-col">
+        <div class="form-row two-col">
             <div class="form-group">
                 <label for="customer">Customer Name *</label>
                 <input type="text" id="customer" name="customer" placeholder="Enter customer name" required>
             </div>
             <div class="form-group">
-                <label for="customer_email">Customer Email *</label>
-                <input type="email" id="customer_email" name="customer_email" placeholder="Enter customer email"
-                    required>
-            </div>
-            <div class="form-group">
-                <label for="customer_phone">Customer Phone (WhatsApp) *</label>
-                <input type="tel" id="customer_phone" name="customer_phone" placeholder="e.g. +919876543210" required>
+                <label for="customer_email">Customer Email (Optional)</label>
+                <input type="email" id="customer_email" name="customer_email" placeholder="Enter customer email (optional)">
             </div>
         </div>
-        <div class="form-row">
+        <div class="form-row two-col">
+            <div class="form-group">
+                <label for="customer_phone">Customer Phone Number</label>
+                <input type="tel" id="customer_phone" name="customer_phone" placeholder="Enter customer phone number" required>
+            </div>
             <div class="form-group">
                 <label for="customer_address">Customer Address *</label>
-                <textarea id="customer_address" name="customer_address" placeholder="Enter full address" rows="2"
-                    required style="resize:vertical;width:100%;padding:10px;
-                                 border:1px solid #e2e8f0;border-radius:8px;
-                                 font-size:14px;font-family:inherit;"></textarea>
+                <textarea id="customer_address" name="customer_address" placeholder="Enter full address" rows="1" required 
+                          style="resize:vertical;width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;height:45px;"></textarea>
             </div>
         </div>
 

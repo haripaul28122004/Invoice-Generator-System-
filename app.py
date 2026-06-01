@@ -484,16 +484,18 @@ def build_invoice_pdf(invoice):
     # PART 3 — 3-COLUMN: Customer | Billing | Shipping
     # ══════════════════════════════════════════════════════════════
     addr     = invoice.get('customer_address', '') or 'N/A'
-    email    = invoice.get('customer_email', '')  or 'N/A'
+    email    = invoice.get('customer_email', '')  or ''
+    phone    = invoice.get('customer_phone', '')  or ''
     customer = invoice.get('customer', 'N/A')     or 'N/A'
     col_w = W / 3.0
 
-    cust_para = Paragraph(
-        f'<b>Customer Details</b><br/>'
-        f'<font size="8">{customer}</font><br/>'
-        f'<font size="7" color="#565959">{email}</font>',
-        s_normal
-    )
+    cust_html = f'<b>Customer Details</b><br/><font size="8">{customer}</font>'
+    if phone:
+        cust_html += f'<br/><font size="7" color="#565959">Phone: {phone}</font>'
+    if email:
+        cust_html += f'<br/><font size="7" color="#565959">Email: {email}</font>'
+
+    cust_para = Paragraph(cust_html, s_normal)
     bill_para = Paragraph(
         f'<b>Billing Address</b><br/>'
         f'<font size="8">{addr}</font>',
@@ -1329,8 +1331,8 @@ def create_invoice():
         try:
             if not customer:
                 raise ValueError('Customer name is required.')
-            if not customer_email or '@' not in customer_email:
-                raise ValueError('A valid customer email is required.')
+            if customer_email and '@' not in customer_email:
+                raise ValueError('Please enter a valid email address.')
             if not customer_phone:
                 raise ValueError('Customer phone number is required.')
             if not customer_address:
@@ -1414,8 +1416,11 @@ def create_invoice():
             # Generate PDF then fire email in background — never blocks the HTTP response
             try:
                 pdf_bytes = _generate_pdf_bytes(dict(new_invoice), [dict(r) for r in new_items])
-                _send_email_bg(customer_email, customer, grand_total, pdf_data=pdf_bytes)
-                flash('Invoice created successfully! Email will be sent to the customer shortly.', 'success')
+                if customer_email:
+                    _send_email_bg(customer_email, customer, grand_total, pdf_data=pdf_bytes)
+                    flash('Invoice created successfully! Email will be sent to the customer shortly.', 'success')
+                else:
+                    flash('Invoice created successfully!', 'success')
             except Exception as bg_err:
                 print(f"[BG-MAIL] Could not start email thread: {bg_err}")
                 flash('Invoice created successfully. (Email could not be queued.)', 'warning')
