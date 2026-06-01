@@ -99,12 +99,14 @@ ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'haripaul007')
 # ============================================
 _MAIL_USER = os.environ.get('MAIL_USERNAME', 'haripaul28122004@gmail.com')
 _MAIL_PASS = os.environ.get('MAIL_PASSWORD', 'yvxfavdfzlctkozd')
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = _MAIL_USER
-app.config['MAIL_PASSWORD'] = _MAIL_PASS
+app.config['MAIL_SERVER']         = 'smtp.gmail.com'
+app.config['MAIL_PORT']           = 465
+app.config['MAIL_USE_SSL']        = True
+app.config['MAIL_USE_TLS']        = False
+app.config['MAIL_USERNAME']       = _MAIL_USER
+app.config['MAIL_PASSWORD']       = _MAIL_PASS
 app.config['MAIL_DEFAULT_SENDER'] = _MAIL_USER
+app.config['MAIL_DEBUG']          = True   # prints SMTP conversation to logs
 
 mail = Mail(app)
 
@@ -825,8 +827,29 @@ InvoiceFlow Team
         return True
 
     except Exception as e:
+        tb = traceback.format_exc()
         print(f"[ERROR] Email Error: {str(e)}")
+        print(tb)
         return False
+
+
+@app.route('/test_email')
+def test_email():
+    """Send a test email and show the result — use to diagnose SMTP issues."""
+    if session.get('role') not in ('admin', 'user'):
+        return 'Login required', 403
+    to = request.args.get('to', app.config['MAIL_USERNAME'])
+    try:
+        msg = Message(
+            subject='InvoiceFlow — SMTP Test',
+            recipients=[to],
+            body='This is a test email from InvoiceFlow. SMTP is working correctly!'
+        )
+        mail.send(msg)
+        return f'<h2 style="color:green">✅ Email sent successfully to {to}!</h2>'
+    except Exception as e:
+        tb = traceback.format_exc()
+        return f'<h2 style="color:red">❌ Email FAILED</h2><pre>{tb}</pre>', 500
 
 
 def get_product_gst(conn, product_name):
