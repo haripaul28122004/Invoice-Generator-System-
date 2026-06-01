@@ -855,6 +855,34 @@ def test_email():
         return f'<h2 style="color:red">❌ Email FAILED</h2><pre>{tb}</pre>', 500
 
 
+@app.route('/test_resend')
+def test_resend():
+    """Synchronous Resend test — shows exact API response. Must be logged in."""
+    if session.get('role') not in ('admin', 'user'):
+        return 'Login required', 403
+
+    to = request.args.get('to', 'haripaul28122004@gmail.com')
+    api_key = os.environ.get('RESEND_API_KEY', 're_LvihM4fk_Pd72KBSsfEyCy2Co2HvJVvie')
+
+    try:
+        _resend.api_key = api_key
+        resp = _resend.Emails.send({
+            "from":    "InvoiceFlow <onboarding@resend.dev>",
+            "to":      [to],
+            "subject": "InvoiceFlow — Resend Test",
+            "html":    "<h2>✅ Resend is working!</h2><p>Email delivery confirmed.</p>",
+        })
+        return (
+            f'<h2 style="color:green">✅ Resend accepted the email!</h2>'
+            f'<p>Sent to: <b>{to}</b></p>'
+            f'<pre>Response: {resp}</pre>'
+            f'<p>Check <b>{to}</b> inbox (also check spam folder).</p>'
+        )
+    except Exception as e:
+        tb = traceback.format_exc()
+        return f'<h2 style="color:red">❌ Resend FAILED</h2><pre>{tb}</pre>', 500
+
+
 def get_product_gst(conn, product_name):
     """Get GST rate for a product from database"""
     try:
