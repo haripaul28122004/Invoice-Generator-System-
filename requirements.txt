@@ -4,3 +4,5 @@ Werkzeug
 gunicorn
 pdfkit
 reportlab
+numpy
+scikit-learn

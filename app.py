@@ -114,11 +114,11 @@ mail = Mail(app)
 @app.errorhandler(500)
 def internal_error(e):
     """Log the full traceback for every 500 so Render logs show the real cause."""
-    tb = traceback.format_exc()
+    tb = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
     print("===== 500 INTERNAL SERVER ERROR =====")
     print(tb)
     print("=====================================")
-    return f"<h1>Internal Server Error</h1><pre>{tb}</pre>", 500
+    return f"<h1>Internal Server Error</h1><pre style='white-space:pre-wrap;word-break:break-all'>{tb}</pre>", 500
 
 
 @app.route('/health')
