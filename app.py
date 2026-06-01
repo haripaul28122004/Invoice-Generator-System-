@@ -1,11 +1,25 @@
-﻿import sys
+# -*- coding: utf-8 -*-
+import sys
+import io
+import os
+
+# ── Force UTF-8 I/O on Windows (prevents UnicodeEncodeError for ₹ / emoji) ──
+os.environ.setdefault('PYTHONUTF8', '1')
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except AttributeError:
+    # Fallback for Python < 3.7
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 if __name__ == '__main__':
     sys.modules['app'] = sys.modules['__main__']
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, jsonify
 from flask_mail import Mail, Message
 import sqlite3
-import io
+
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
@@ -59,7 +73,7 @@ try:
     # ── 3. Build config or warn ───────────────────────────────────
     if _WKHTMLTOPDF:
         _PDFKIT_CONFIG = pdfkit.configuration(wkhtmltopdf=_WKHTMLTOPDF)
-        print(f"[pdfkit] READY — using: {_WKHTMLTOPDF}")
+        print(f"[pdfkit] READY - using: {_WKHTMLTOPDF}")
     else:
         _PDFKIT_CONFIG = None
         print("[pdfkit] *** wkhtmltopdf.exe NOT FOUND on this system. ***")
@@ -251,27 +265,32 @@ def calculate_tax(subtotal, gst_rate=0.18):
 
 
 def _generate_pdf_bytes(invoice_dict, items=None):
-    """Render invoice_pdf.html and convert to PDF bytes via pdfkit/wkhtmltopdf."""
-    print("USING NEW PDF SYSTEM")
-    if not pdfkit or not _PDFKIT_CONFIG:
-        raise RuntimeError(
-            "wkhtmltopdf not found. Install it from https://wkhtmltopdf.org/downloads.html "
-            "to C:\\Program Files\\wkhtmltopdf\\ and restart the server."
-        )
-    html_str = render_template('invoice_pdf.html', invoice=invoice_dict, items=items or [])
-    options = {
-        'page-size':      'A4',
-        'margin-top':     '10mm',
-        'margin-right':   '10mm',
-        'margin-bottom':  '10mm',
-        'margin-left':    '10mm',
-        'encoding':       'UTF-8',
-        'no-outline':     None,
-        'enable-local-file-access': None,
-    }
-    return pdfkit.from_string(html_str, False,
-                              configuration=_PDFKIT_CONFIG,
-                              options=options)
+    """Render invoice to PDF bytes.
+
+    Prefers pdfkit/wkhtmltopdf for pixel-perfect HTML rendering.
+    Falls back to the built-in ReportLab generator when wkhtmltopdf
+    is not installed, so PDF download never fails.
+    """
+    if pdfkit and _PDFKIT_CONFIG:
+        print("USING PDFKIT PDF SYSTEM")
+        html_str = render_template('invoice_pdf.html', invoice=invoice_dict, items=items or [])
+        options = {
+            'page-size':      'A4',
+            'margin-top':     '10mm',
+            'margin-right':   '10mm',
+            'margin-bottom':  '10mm',
+            'margin-left':    '10mm',
+            'encoding':       'UTF-8',
+            'no-outline':     None,
+            'enable-local-file-access': None,
+        }
+        return pdfkit.from_string(html_str, False,
+                                  configuration=_PDFKIT_CONFIG,
+                                  options=options)
+
+    # Fallback: pure-Python ReportLab PDF (no external binary needed)
+    print("USING REPORTLAB FALLBACK PDF SYSTEM")
+    return build_invoice_pdf(invoice_dict)
 
 
 def _number_to_words(amount):
@@ -767,11 +786,11 @@ InvoiceFlow Team
             )
 
         mail.send(msg)
-        print(f"✓ Email sent successfully to {email}")
+        print(f"[OK] Email sent successfully to {email}")
         return True
 
     except Exception as e:
-        print(f"✗ Email Error: {str(e)}")
+        print(f"[ERROR] Email Error: {str(e)}")
         return False
 
 
@@ -1471,7 +1490,7 @@ def customer_dashboard():
     ).fetchone()
     total_revenue = totals['revenue'] if totals else 0
 
-    print(f"DEBUG customer_dashboard: found {len(invoices)} invoice(s), total=₹{total_revenue}")
+    print(f"DEBUG customer_dashboard: found {len(invoices)} invoice(s), total={total_revenue}")
     conn.close()
 
     return render_template('customer/dashboard.html', invoices=invoices, total_revenue=total_revenue)
@@ -1498,7 +1517,7 @@ def view_invoice(invoice_id):
     if session.get('role') == 'customer':
         session_email = (session.get('email') or '').strip().lower()
         invoice_email = (invoice['customer_email'] or '').strip().lower()
-        print(f"VIEW_INVOICE — SESSION EMAIL: {session_email!r}  |  INVOICE EMAIL: {invoice_email!r}")
+        print(f"VIEW_INVOICE - SESSION EMAIL: {session_email!r}  |  INVOICE EMAIL: {invoice_email!r}")
         if session_email != invoice_email:
             conn.close()
             flash('You do not have access to this invoice.', 'danger')
@@ -1582,7 +1601,7 @@ def download_invoice(invoice_id):
     if session.get('role') == 'customer':
         session_email = (session.get('email') or '').strip().lower()
         invoice_email = (invoice['customer_email'] or '').strip().lower()
-        print(f"DOWNLOAD_INVOICE — SESSION EMAIL: {session_email!r}  |  INVOICE EMAIL: {invoice_email!r}")
+        print(f"DOWNLOAD_INVOICE - SESSION EMAIL: {session_email!r}  |  INVOICE EMAIL: {invoice_email!r}")
         if session_email != invoice_email:
             flash('You do not have access to this invoice.', 'danger')
             return redirect(url_for('customer_dashboard'))
