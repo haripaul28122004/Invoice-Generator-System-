@@ -20,6 +20,13 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_mail import Mail, Message
 import sqlite3
 
+try:
+    import resend as _resend
+    _RESEND_AVAILABLE = True
+except ImportError:
+    _RESEND_AVAILABLE = False
+    print("[EMAIL] resend package not installed. Run: pip install resend")
+
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
@@ -705,39 +712,26 @@ def build_invoice_pdf(invoice):
 
 
 def send_invoice_email(email, name, total, pdf_data=None):
-    """Send a professional invoice email with optional PDF attachment."""
+    """Send invoice email via Resend (HTTPS API — works on Render free tier)."""
     try:
         if not email or '@' not in email:
-            print(f"Invalid email address: {email}")
+            print(f"[EMAIL] Invalid address: {email}")
             return False
 
+        api_key = os.environ.get('RESEND_API_KEY', '')
+        if not api_key:
+            print("[EMAIL] RESEND_API_KEY not set — email skipped.")
+            return False
+
+        if not _RESEND_AVAILABLE:
+            print("[EMAIL] resend package not installed — email skipped.")
+            return False
+
+        _resend.api_key = api_key
+
         now_str = datetime.now().strftime('%d-%m-%Y')
-        msg = Message(
-            subject="Your Invoice from InvoiceFlow",
-            recipients=[email]
-        )
 
-        # Plain-text fallback
-        msg.body = f"""Dear {name},
-
-We hope this message finds you well.
-
-Please find attached your invoice for the recent transaction.
-
-Invoice Summary:
-  Total Amount : ₹{total:.2f}
-  Date         : {now_str}
-
-If you have any questions, feel free to contact us.
-
-Thank you for your business.
-
-Best regards,
-InvoiceFlow Team
-"""
-
-        # Rich HTML body
-        msg.html = f"""\
+        html_body = f"""\
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
@@ -747,85 +741,70 @@ InvoiceFlow Team
       <table width="580" cellpadding="0" cellspacing="0"
              style="background:#ffffff;border-radius:8px;
                     box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;">
-
-        <!-- Header -->
         <tr>
           <td style="background:#4f46e5;padding:28px 32px;">
             <h1 style="margin:0;color:#ffffff;font-size:22px;">InvoiceFlow</h1>
             <p  style="margin:4px 0 0;color:#c7d2fe;font-size:13px;">Invoice Notification</p>
           </td>
         </tr>
-
-        <!-- Greeting -->
         <tr><td style="padding:28px 32px 0;">
           <p style="margin:0;font-size:15px;color:#1e293b;">Dear <strong>{name}</strong>,</p>
           <p style="margin:12px 0 0;font-size:14px;color:#475569;line-height:1.6;">
-            We hope this message finds you well.<br>
-            Please find your invoice attached to this email.
+            Thank you for your business.<br>Please find your invoice attached.
           </p>
         </td></tr>
-
-        <!-- Summary card -->
         <tr><td style="padding:24px 32px;">
           <table width="100%" cellpadding="0" cellspacing="0"
                  style="background:#f8fafc;border:1px solid #e2e8f0;
                         border-radius:6px;border-left:4px solid #4f46e5;">
-            <tr>
-              <td style="padding:18px 20px;">
-                <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;
-                          letter-spacing:1px;color:#64748b;">Invoice Summary</p>
-                <table width="100%">
-                  <tr>
-                    <td style="font-size:13px;color:#475569;">Total Amount</td>
-                    <td align="right" style="font-size:18px;font-weight:bold;
-                                            color:#4f46e5;">₹{total:,.2f}</td>
-                  </tr>
-                  <tr>
-                    <td style="font-size:13px;color:#475569;padding-top:6px;">Date</td>
-                    <td align="right" style="font-size:13px;color:#475569;
-                                            padding-top:6px;">{now_str}</td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
+            <tr><td style="padding:18px 20px;">
+              <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;
+                        letter-spacing:1px;color:#64748b;">Invoice Summary</p>
+              <table width="100%">
+                <tr>
+                  <td style="font-size:13px;color:#475569;">Total Amount</td>
+                  <td align="right" style="font-size:18px;font-weight:bold;
+                                          color:#4f46e5;">₹{total:,.2f}</td>
+                </tr>
+                <tr>
+                  <td style="font-size:13px;color:#475569;padding-top:6px;">Date</td>
+                  <td align="right" style="font-size:13px;color:#475569;
+                                          padding-top:6px;">{now_str}</td>
+                </tr>
+              </table>
+            </td></tr>
           </table>
         </td></tr>
-
-        <!-- Note -->
-        <tr><td style="padding:0 32px 24px;">
-          <p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">
-            If you have any questions regarding this invoice, please don't
-            hesitate to contact us.
+        <tr><td style="background:#f8fafc;padding:18px 32px;
+                     border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:12px;color:#94a3b8;">
+            Thank you &mdash;
+            <strong style="color:#4f46e5;">InvoiceFlow Team</strong>
           </p>
         </td></tr>
-
-        <!-- Footer -->
-        <tr>
-          <td style="background:#f8fafc;padding:18px 32px;
-                     border-top:1px solid #e2e8f0;">
-            <p style="margin:0;font-size:12px;color:#94a3b8;">
-              Thank you for your business &mdash;
-              <strong style="color:#4f46e5;">InvoiceFlow Team</strong>
-            </p>
-          </td>
-        </tr>
-
       </table>
     </td></tr>
   </table>
 </body>
 </html>"""
 
+        params = {
+            "from": "InvoiceFlow <onboarding@resend.dev>",
+            "to":   [email],
+            "subject": "Your Invoice from InvoiceFlow",
+            "html": html_body,
+        }
+
         # Attach PDF if provided
         if pdf_data:
-            msg.attach(
-                filename='invoice.pdf',
-                content_type='application/pdf',
-                data=pdf_data
-            )
+            import base64
+            params["attachments"] = [{
+                "filename": "invoice.pdf",
+                "content":  list(pdf_data),
+            }]
 
-        mail.send(msg)
-        print(f"[OK] Email sent successfully to {email}")
+        _resend.Emails.send(params)
+        print(f"[EMAIL] Sent via Resend to {email}")
         return True
 
     except BaseException as e:
@@ -833,6 +812,8 @@ InvoiceFlow Team
         print(f"[ERROR] Email Error: {str(e)}")
         print(tb)
         return False
+
+
 
 
 def _send_email_bg(email, name, total, pdf_data=None):

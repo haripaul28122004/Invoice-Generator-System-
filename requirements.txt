@@ -6,3 +6,4 @@ pdfkit
 reportlab
 numpy
 scikit-learn
+resend
