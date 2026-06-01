@@ -718,7 +718,7 @@ def send_invoice_email(email, name, total, pdf_data=None):
             print(f"[EMAIL] Invalid address: {email}")
             return False
 
-        api_key = os.environ.get('RESEND_API_KEY', 're_XtN5Mkrq_C7E2hgjTisKZH8u2zzMfHMe3')
+        api_key = os.environ.get('RESEND_API_KEY', 're_LvihM4fk_Pd72KBSsfEyCy2Co2HvJVvie')
         if not api_key:
             print("[EMAIL] RESEND_API_KEY not set — email skipped.")
             return False
