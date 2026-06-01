@@ -30,6 +30,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, 
 
 from functools import wraps
 import json
+import traceback
 import os, glob, shutil
 
 try:
@@ -106,6 +107,37 @@ app.config['MAIL_PASSWORD'] = _MAIL_PASS
 app.config['MAIL_DEFAULT_SENDER'] = _MAIL_USER
 
 mail = Mail(app)
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    """Log the full traceback for every 500 so Render logs show the real cause."""
+    tb = traceback.format_exc()
+    print("===== 500 INTERNAL SERVER ERROR =====")
+    print(tb)
+    print("=====================================")
+    return f"<h1>Internal Server Error</h1><pre>{tb}</pre>", 500
+
+
+@app.route('/health')
+def health():
+    """Quick health-check endpoint — shows DB path and mail config."""
+    import sqlite3 as _sq
+    db_ok = False
+    try:
+        c = _sq.connect(DATABASE)
+        c.execute('SELECT 1')
+        c.close()
+        db_ok = True
+    except Exception as _e:
+        db_ok_msg = str(_e)
+    return jsonify({
+        'status': 'ok',
+        'database': DATABASE,
+        'db_reachable': db_ok,
+        'mail_user': app.config.get('MAIL_USERNAME'),
+        'mail_server': app.config.get('MAIL_SERVER'),
+    })
 
 
 def get_db_connection():
@@ -1351,12 +1383,15 @@ def create_invoice():
             return redirect(url_for('user_dashboard'))
 
         except ValueError as error:
-            conn.close()
+            try: conn.close()
+            except Exception: pass
             flash(str(error), 'danger')
             return redirect(url_for('create_invoice'))
         except Exception as e:
             print(f"ERROR create_invoice: {e}")
-            conn.close()
+            traceback.print_exc()
+            try: conn.close()
+            except Exception: pass
             flash(f'Unexpected error creating invoice: {str(e)}', 'danger')
             return redirect(url_for('create_invoice'))
 
