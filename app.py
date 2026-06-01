@@ -31,6 +31,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, 
 from functools import wraps
 import json
 import traceback
+import threading
 import os, glob, shutil
 
 try:
@@ -107,6 +108,7 @@ app.config['MAIL_USERNAME']       = _MAIL_USER
 app.config['MAIL_PASSWORD']       = _MAIL_PASS
 app.config['MAIL_DEFAULT_SENDER'] = _MAIL_USER
 app.config['MAIL_DEBUG']          = True   # prints SMTP conversation to logs
+app.config['MAIL_TIMEOUT']        = 10     # fail fast — don't hang gunicorn worker
 
 mail = Mail(app)
 
@@ -826,11 +828,31 @@ InvoiceFlow Team
         print(f"[OK] Email sent successfully to {email}")
         return True
 
-    except Exception as e:
+    except BaseException as e:
         tb = traceback.format_exc()
         print(f"[ERROR] Email Error: {str(e)}")
         print(tb)
         return False
+
+
+def _send_email_bg(email, name, total, pdf_data=None):
+    """Fire-and-forget: send invoice email in a daemon thread.
+
+    This keeps the gunicorn worker free — it returns the HTTP response
+    immediately while the email goes out in the background.
+    If Render blocks SMTP the thread will fail silently after MAIL_TIMEOUT
+    seconds without killing the worker.
+    """
+    def _worker():
+        with app.app_context():
+            ok = send_invoice_email(email, name, total, pdf_data=pdf_data)
+            if ok:
+                print(f"[BG-MAIL] Sent to {email}")
+            else:
+                print(f"[BG-MAIL] Failed for {email}")
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
 
 
 @app.route('/test_email')
@@ -1393,14 +1415,14 @@ def create_invoice():
             ).fetchall()
             conn.close()
 
-            # Email with PDF — non-fatal
+            # Generate PDF then fire email in background — never blocks the HTTP response
             try:
                 pdf_bytes = _generate_pdf_bytes(dict(new_invoice), [dict(r) for r in new_items])
-                send_invoice_email(customer_email, customer, grand_total, pdf_data=pdf_bytes)
-                flash('Invoice created successfully and email sent with PDF.', 'success')
-            except Exception as email_err:
-                print(f"Email failed (non-fatal): {email_err}")
-                flash('Invoice created successfully. Email could not be sent.', 'warning')
+                _send_email_bg(customer_email, customer, grand_total, pdf_data=pdf_bytes)
+                flash('Invoice created successfully! Email will be sent to the customer shortly.', 'success')
+            except Exception as bg_err:
+                print(f"[BG-MAIL] Could not start email thread: {bg_err}")
+                flash('Invoice created successfully. (Email could not be queued.)', 'warning')
 
             session['invoice_email_preview'] = generate_email(customer, first_product, grand_total, 0)
             return redirect(url_for('user_dashboard'))
