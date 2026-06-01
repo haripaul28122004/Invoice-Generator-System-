@@ -86,21 +86,24 @@ except ImportError:
     print("[pdfkit] WARNING: pdfkit not installed. Run: pip install pdfkit")
 
 app = Flask(__name__)
-app.secret_key = 'invoice_flow_secret_key_2026'
+app.secret_key = os.environ.get('SECRET_KEY', 'invoice_flow_secret_key_2026')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)
-DATABASE = 'database.db'
-ADMIN_EMAIL = 'haripaul28122004@gmail.com'
-ADMIN_PASSWORD = 'haripaul007'
+# Use absolute path so SQLite works regardless of working directory (e.g. on Render)
+DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'haripaul28122004@gmail.com')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'haripaul007')
 
 # ============================================
 # EMAIL CONFIGURATION
 # ============================================
+_MAIL_USER = os.environ.get('MAIL_USERNAME', 'haripaul28122004@gmail.com')
+_MAIL_PASS = os.environ.get('MAIL_PASSWORD', 'yvxfavdfzlctkozd')
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'haripaul28122004@gmail.com'  
-app.config['MAIL_PASSWORD'] = 'yvxfavdfzlctkozd'  
-app.config['MAIL_DEFAULT_SENDER'] = 'haripaul28122004@gmail.com' 
+app.config['MAIL_USERNAME'] = _MAIL_USER
+app.config['MAIL_PASSWORD'] = _MAIL_PASS
+app.config['MAIL_DEFAULT_SENDER'] = _MAIL_USER
 
 mail = Mail(app)
 
