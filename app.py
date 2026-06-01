@@ -490,8 +490,7 @@ def build_invoice_pdf(invoice):
     col_w = W / 3.0
 
     cust_html = f'<b>Customer Details</b><br/><font size="8">{customer}</font>'
-    if phone:
-        cust_html += f'<br/><font size="7" color="#565959">Phone: {phone}</font>'
+    cust_html += f'<br/><font size="7" color="#565959">Phone: {phone}</font>'
     if email:
         cust_html += f'<br/><font size="7" color="#565959">Email: {email}</font>'
 

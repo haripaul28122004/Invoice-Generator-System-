@@ -99,14 +99,16 @@
       <td width="50%" style="padding:24px 32px; vertical-align:top;">
         <div class="section-label">Bill To</div>
         <div class="cust-name">{{ invoice['customer'] }}</div>
-        {% if invoice['customer_phone'] %}
-        <div class="cust-meta">Phone: {{ invoice['customer_phone'] }}</div>
-        {% endif %}
+        
+        <div class="cust-meta" style="margin-top: 6px;">Phone: {{ invoice['customer_phone'] }}</div>
+        
         {% if invoice['customer_email'] %}
         <div class="cust-meta">Email: {{ invoice['customer_email'] }}</div>
         {% endif %}
+        
         {% if invoice['customer_address'] %}
-        <div class="cust-meta">Address: {{ invoice['customer_address'] }}</div>
+        <div class="cust-meta" style="margin-top: 6px; font-weight: bold; color: #64748b; font-size: 10px; text-transform: uppercase;">Address:</div>
+        <div class="cust-meta" style="white-space: pre-line;">{{ invoice['customer_address'] }}</div>
         {% endif %}
       </td>
       <td width="50%" style="padding:24px 32px; vertical-align:top; text-align:right;">

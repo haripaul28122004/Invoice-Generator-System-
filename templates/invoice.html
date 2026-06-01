@@ -33,15 +33,17 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:28px 36px;border-bottom:1px solid #e2e8f0;">
         <div>
             <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;font-weight:600;">Bill To</p>
-            <p style="margin:0 0 4px;font-size:16px;font-weight:700;color:#1e293b;">{{ invoice['customer'] }}</p>
+            <p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#1e293b;">{{ invoice['customer'] }}</p>
+            
+            <p style="margin:0 0 4px;font-size:13px;color:#475569;">Phone: {{ invoice['customer_phone'] }}</p>
+            
             {% if invoice['customer_email'] %}
-            <p style="margin:0 0 4px;font-size:13px;color:#475569;">📧 {{ invoice['customer_email'] }}</p>
+            <p style="margin:0 0 8px;font-size:13px;color:#475569;">Email: {{ invoice['customer_email'] }}</p>
             {% endif %}
-            {% if invoice['customer_phone'] %}
-            <p style="margin:0 0 4px;font-size:13px;color:#475569;">📞 {{ invoice['customer_phone'] }}</p>
-            {% endif %}
+            
             {% if invoice['customer_address'] %}
-            <p style="margin:0;font-size:13px;color:#475569;white-space:pre-line;">📍 {{ invoice['customer_address'] }}</p>
+            <p style="margin:8px 0 2px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;font-weight:600;">Address:</p>
+            <p style="margin:0;font-size:13px;color:#475569;white-space:pre-line;">{{ invoice['customer_address'] }}</p>
             {% endif %}
         </div>
         <div style="text-align:right;">
