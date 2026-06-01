@@ -132,24 +132,36 @@
     </div>
 
     <!-- ── Footer ─────────────────────────────────────────── -->
-    <div style="background:#f8fafc;padding:18px 36px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+    <div style="background:#f8fafc;padding:18px 36px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
         <p style="margin:0;font-size:12px;color:#94a3b8;">Thank you for your business — <strong style="color:#4f46e5;">InvoiceFlow Team</strong></p>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             {% if invoice['customer_phone'] %}
             {% set clean_phone = invoice['customer_phone']|replace(' ', '')|replace('+', '')|replace('-', '') %}
             {% set ws_summary_msg = "Hello " ~ invoice['customer'] ~ ",\n\nYour invoice is ready.\n\nInvoice ID: INV-" ~ (1000 + invoice['id']) ~ "\nGrand Total: ₹" ~ "%.2f"|format(grand_total) ~ "\n\nThank you for choosing our service." %}
-            {% set ws_pdf_msg = "Hello " ~ invoice['customer'] ~ ",\n\nYour invoice is ready.\n\nInvoice ID: INV-" ~ (1000 + invoice['id']) ~ "\nGrand Total: ₹" ~ "%.2f"|format(grand_total) ~ "\n\nView Invoice PDF:\n" ~ request.url_root[:-1] ~ "/uploads/invoices/invoice_" ~ (1000 + invoice['id']) ~ ".pdf\n\nThank you for choosing our service." %}
-            <a href="https://wa.me/{{ clean_phone }}?text={{ ws_summary_msg|urlencode }}" target="_blank" class="whatsapp-btn">
+            {% set ws_pdf_msg = "Hello " ~ invoice['customer'] ~ ",\n\nYour invoice has been generated successfully.\n\nInvoice ID: INV-" ~ (1000 + invoice['id']) ~ "\nGrand Total: ₹" ~ "%.2f"|format(grand_total) ~ "\n\nDownload Invoice:\n" ~ request.url_root[:-1] ~ "/invoices/invoice_" ~ (1000 + invoice['id']) ~ ".pdf\n\nThank you for choosing our service." %}
+            <a href="https://wa.me/{{ clean_phone }}?text={{ ws_summary_msg|urlencode }}" target="_blank" class="whatsapp-btn" style="background-color: #075E54;">
                 <i class="fa-brands fa-whatsapp"></i> Share Message
             </a>
-            <a href="https://wa.me/{{ clean_phone }}?text={{ ws_pdf_msg|urlencode }}" target="_blank" class="whatsapp-btn pdf-btn">
-                <i class="fa-brands fa-whatsapp"></i> Share PDF
+            <a id="waSharePdfBtn" href="https://wa.me/{{ clean_phone }}?text={{ ws_pdf_msg|urlencode }}" target="_blank" class="whatsapp-btn">
+                <i class="fa-brands fa-whatsapp"></i> Send Invoice on WhatsApp
             </a>
             {% endif %}
             <a href="{{ url_for('download_invoice', invoice_id=invoice['id']) }}" class="button">⬇ Download PDF</a>
+            <a href="javascript:window.print()" class="button secondary">🖨️ Print Invoice</a>
             <a href="javascript:history.back()" class="button secondary">Back</a>
         </div>
     </div>
+
+{% if request.args.get('just_created') == '1' and invoice['customer_phone'] %}
+<script>
+    window.addEventListener('DOMContentLoaded', (event) => {
+        const waBtn = document.getElementById('waSharePdfBtn');
+        if (waBtn) {
+            window.open(waBtn.href, '_blank');
+        }
+    });
+</script>
+{% endif %}
 
 </div>
 {% endblock %}

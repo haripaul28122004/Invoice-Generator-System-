@@ -1425,7 +1425,7 @@ def create_invoice():
                 flash('Invoice created successfully. (Email could not be queued.)', 'warning')
 
             session['invoice_email_preview'] = generate_email(customer, first_product, grand_total, 0)
-            return redirect(url_for('user_dashboard'))
+            return redirect(url_for('view_invoice', invoice_id=invoice_id, just_created='1'))
 
         except ValueError as error:
             try: conn.close()
@@ -1718,6 +1718,7 @@ def download_invoice(invoice_id):
         return redirect(url_for('admin.admin_dashboard'))
 
 
+@app.route('/invoices/invoice_<int:invoice_id_padded>.pdf')
 @app.route('/uploads/invoices/invoice_<int:invoice_id_padded>.pdf')
 def public_invoice_pdf(invoice_id_padded):
     if invoice_id_padded > 1000:
