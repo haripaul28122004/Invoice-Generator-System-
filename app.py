@@ -857,12 +857,13 @@ def test_email():
 
 @app.route('/test_resend')
 def test_resend():
-    """Synchronous Resend test — shows exact API response. Must be logged in."""
-    if session.get('role') not in ('admin', 'user'):
-        return 'Login required', 403
-
+    """Synchronous Resend test — shows exact API response."""
     to = request.args.get('to', 'haripaul28122004@gmail.com')
     api_key = os.environ.get('RESEND_API_KEY', 're_LvihM4fk_Pd72KBSsfEyCy2Co2HvJVvie')
+
+    # Check if resend is available
+    if not _RESEND_AVAILABLE:
+        return '<h2 style="color:red">❌ resend package NOT installed on server!</h2>', 500
 
     try:
         _resend.api_key = api_key
@@ -873,14 +874,14 @@ def test_resend():
             "html":    "<h2>✅ Resend is working!</h2><p>Email delivery confirmed.</p>",
         })
         return (
-            f'<h2 style="color:green">✅ Resend accepted the email!</h2>'
-            f'<p>Sent to: <b>{to}</b></p>'
+            f'<h2 style="color:green">✅ Resend accepted!</h2>'
+            f'<p>To: <b>{to}</b></p>'
             f'<pre>Response: {resp}</pre>'
-            f'<p>Check <b>{to}</b> inbox (also check spam folder).</p>'
+            f'<p>Check inbox + <b>spam folder</b></p>'
         )
     except Exception as e:
         tb = traceback.format_exc()
-        return f'<h2 style="color:red">❌ Resend FAILED</h2><pre>{tb}</pre>', 500
+        return f'<h2 style="color:red">❌ Resend ERROR</h2><pre>{tb}</pre>', 500
 
 
 def get_product_gst(conn, product_name):
