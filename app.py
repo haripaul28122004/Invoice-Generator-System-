@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 if __name__ == '__main__':
     sys.modules['app'] = sys.modules['__main__']
 
@@ -8,6 +8,11 @@ import sqlite3
 import io
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
 
 from functools import wraps
 import json
@@ -156,7 +161,8 @@ def init_db():
     # Migration: add new columns if they don't exist
     try:
         cur.execute("PRAGMA table_info(products)")
-        prod_cols = [col[1] for col in cur.fetchall()]
+        prod_cols = [col[1] for col in cur.
+        fetchall()]
         if 'category' not in prod_cols:
             cur.execute("ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'General'")
         if 'stock' not in prod_cols:
@@ -318,8 +324,6 @@ def build_invoice_pdf(invoice):
     invoice = dict(invoice)
     print("INVOICE DATA:", invoice)
 
-    from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
-
     # ── Style helpers ──────────────────────────────────────────────
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -330,7 +334,6 @@ def build_invoice_pdf(invoice):
     W = A4[0] - 60          # usable width (points)
 
     def style(name='Normal', **kw):
-        from reportlab.lib.styles import ParagraphStyle
         return ParagraphStyle(name, parent=styles[name], **kw)
 
     BRAND   = colors.HexColor('#131921')   # Amazon dark header

@@ -1,27 +1,91 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="home-container">
-    <div class="home-content">
-        <div class="home-text">
-            <h1>InvoiceFlow</h1>
-            <p>Manage invoices efficiently with our modern, intuitive platform. Choose your role to get started.</p>
-            <div class="home-actions">
-                <a href="{{ url_for('admin_login') }}" class="button">Admin Login</a>
-                <a href="{{ url_for('user_login') }}" class="button secondary">Employee Login</a>
-                <a href="{{ url_for('customer_login') }}" class="button secondary">Customer Login</a>
-                <a href="{{ url_for('customer_register') }}" class="button secondary">Customer Register</a>
-            </div>
+<div class="login-portal">
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-badge">
+            <span class="badge-dot"></span>
+            InvoiceFlow Management System
         </div>
-    </div>
-    <div class="home-image">
-        <div class="floating-image">
-            <div style="text-align: center; padding: 2rem; background: rgba(79, 70, 229, 0.1); border-radius: 12px; color: var(--primary-color);">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-                <h3>Professional Invoice Management</h3>
-                <p>Simple, Fast, Secure</p>
-            </div>
+        <h1 class="hero-heading">
+            Manage invoices, customers, employees and business analytics from one platform.
+        </h1>
+        <p class="hero-subtitle">
+            Secure invoice management with modern workflows, smart reporting, and clear access paths for every role.
+        </p>
+
+        <!-- Hero Illustration -->
+        <div class="hero-image-wrapper">
+            <div class="hero-glow"></div>
+            <img src="{{ url_for('static', filename='hero-illustration.png') }}"
+                 alt="InvoiceFlow Dashboard Illustration"
+                 class="hero-img" />
         </div>
-    </div>
+    </section>
+
+    <!-- Login Cards -->
+    <section class="login-cards-section">
+        <h2 class="section-label">Choose your portal</h2>
+        <div class="login-grid">
+            <article class="login-card" id="admin-login-card">
+                <div class="card-icon-wrap admin-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <h3>Admin Login</h3>
+                <p>Enter the admin portal for billing control, analytics, and customer management.</p>
+                <a href="{{ url_for('admin_login') }}" class="button full-width">Admin Login</a>
+            </article>
+
+            <article class="login-card" id="employee-login-card">
+                <div class="card-icon-wrap employee-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                </div>
+                <h3>Employee Login</h3>
+                <p>Access your workspace to create invoices, manage customers, and track orders.</p>
+                <a href="{{ url_for('user_login') }}" class="button full-width">Employee Login</a>
+            </article>
+
+            <article class="login-card" id="customer-login-card">
+                <div class="card-icon-wrap customer-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="18" rx="2"/>
+                        <line x1="8" y1="10" x2="16" y2="10"/>
+                        <line x1="8" y1="14" x2="12" y2="14"/>
+                    </svg>
+                </div>
+                <h3>Customer Login</h3>
+                <p>Review your invoices, payment history, and customer dashboard in one place.</p>
+                <a href="{{ url_for('customer_login') }}" class="button full-width">Customer Login</a>
+            </article>
+
+            <article class="login-card" id="customer-register-card">
+                <div class="card-icon-wrap register-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="8.5" cy="7" r="4"/>
+                        <line x1="20" y1="8" x2="20" y2="14"/>
+                        <line x1="23" y1="11" x2="17" y2="11"/>
+                    </svg>
+                </div>
+                <h3>Customer Register</h3>
+                <p>Create a new customer account to start tracking invoices and payments.</p>
+                <a href="{{ url_for('customer_register') }}" class="button full-width secondary">Register</a>
+            </article>
+        </div>
+    </section>
+
+    <!-- Footer Tagline -->
+    <footer class="login-footer">
+        <p>&copy; 2026 InvoiceFlow &mdash; Built for modern business management.</p>
+    </footer>
 </div>
 {% endblock %}

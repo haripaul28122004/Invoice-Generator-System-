@@ -1,23 +1,50 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="login-content">
-    <div class="login-form">
-        <h2>Customer Login</h2>
-        <form method="POST">
-            <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" placeholder="your@email.com" required>
-            </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" placeholder="••••••••" required>
-            </div>
-            <button type="submit" class="button full-width">Login</button>
-        </form>
-        <p class="text-center mt-3">
-            Don't have an account? <a href="{{ url_for('customer_register') }}" class="button secondary mini">Register Here</a>
-        </p>
-    </div>
+<div class="auth-page">
+    <section class="auth-hero">
+        <div class="hero-copy">
+            <p class="eyebrow">InvoiceFlow Management System</p>
+            <h1>Customer Portal</h1>
+            <p>Login to review invoices, payments, and customer-specific reports in a single dashboard.</p>
+        </div>
+        <div class="hero-illustration small-hero" aria-hidden="true">
+            <svg viewBox="0 0 620 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="32" y="72" width="380" height="240" rx="32" fill="#eef2ff" />
+                <rect x="72" y="112" width="260" height="20" rx="10" fill="#c7d2fe" />
+                <rect x="72" y="156" width="300" height="16" rx="8" fill="#dbeafe" />
+                <rect x="72" y="188" width="220" height="16" rx="8" fill="#eff6ff" />
+                <rect x="72" y="220" width="180" height="16" rx="8" fill="#dbeafe" />
+                <rect x="72" y="252" width="260" height="16" rx="8" fill="#eff6ff" />
+                <rect x="430" y="96" width="150" height="150" rx="24" fill="#ffffff" stroke="#c7d2fe" stroke-width="3" />
+                <path d="M460 136H560" stroke="#4f46e5" stroke-width="12" stroke-linecap="round" />
+                <path d="M460 176H520" stroke="#6366f1" stroke-width="12" stroke-linecap="round" />
+                <path d="M460 216H548" stroke="#a5b4fc" stroke-width="12" stroke-linecap="round" />
+                <circle cx="504" cy="314" r="34" fill="#ffffff" stroke="#c7d2fe" stroke-width="3" />
+                <path d="M482 326H526" stroke="#4f46e5" stroke-width="10" stroke-linecap="round" />
+                <path d="M504 300V338" stroke="#6366f1" stroke-width="10" stroke-linecap="round" />
+            </svg>
+        </div>
+    </section>
+    <section class="auth-panel">
+        <div class="login-form">
+            <h2>Customer Login</h2>
+            <p>Sign in to access your invoices, billing history, and customer reports.</p>
+            <form method="POST">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="button full-width">Login</button>
+            </form>
+            <p class="text-center mt-3">
+                Don't have an account? <a href="{{ url_for('customer_register') }}" class="button secondary mini">Register Here</a>
+            </p>
+        </div>
+    </section>
 </div>
 {% endblock %}

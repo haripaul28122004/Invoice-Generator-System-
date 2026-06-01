@@ -88,13 +88,6 @@
         font-weight: 700;
     }
 
-    .ai-icon {
-        position: absolute;
-        right: 16px;
-        top: 16px;
-        font-size: 28px;
-        opacity: .15;
-    }
 
     /* ─── Employee Management ─────────────────────────── */
     .emp-section {
@@ -352,7 +345,6 @@
 
     <!-- Predicted Revenue -->
     <div class="ai-card purple">
-        <span class="ai-icon">🔮</span>
         <div class="ai-card-label">
             AI Predicted Revenue (Next Month)
             <span class="conf-badge conf-{{ ai_revenue.confidence }}">
@@ -369,7 +361,6 @@
     <!-- Growth Indicator -->
     {% if growth_pct is not none %}
     <div class="ai-card {% if growth_pct >= 0 %}green{% else %}ai-card{% endif %}">
-        <span class="ai-icon">{% if growth_pct >= 0 %}📈{% else %}📉{% endif %}</span>
         <div class="ai-card-label">Predicted Growth vs Current</div>
         <div class="ai-card-value
              {% if growth_pct >= 0 %} growth-up {% else %} growth-down {% endif %}">
@@ -388,7 +379,6 @@
     <!-- Best Product -->
     {% if best_product %}
     <div class="ai-card green">
-        <span class="ai-icon">⭐</span>
         <div class="ai-card-label">Top Performing Product</div>
         <div class="ai-card-value" style="font-size:18px;">{{ best_product.name }}</div>
         <div class="ai-card-sub">
@@ -400,7 +390,6 @@
     <!-- Confidence Note -->
     {% if ai_revenue.note %}
     <div class="ai-card amber">
-        <span class="ai-icon">💡</span>
         <div class="ai-card-label">AI Note</div>
         <div class="ai-card-value" style="font-size:14px;font-weight:600;color:#92400e;">
             {{ ai_revenue.note }}
